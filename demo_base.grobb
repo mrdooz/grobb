@@ -1,0 +1,30 @@
+vec3_type = 'vec3';
+
+struct effect_base {
+	string factory;
+	int start;
+	int end;
+};
+
+struct demo {
+	int length;	
+};
+
+struct msg1 {
+	bool m1;
+	bool[] m1v;
+	int m2;
+	int[] m2v;
+	float m3;
+	float[] m3v;
+	string m4;
+	string[] m4v;
+
+	vec2 aa1;
+	vec2[] aa1v;
+};
+
+struct msg2 {
+	msg1 aa;
+	mat2 bb;
+};

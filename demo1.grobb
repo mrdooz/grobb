@@ -1,0 +1,6 @@
+import 'demo_base.grobb'
+
+struct effect1 : effect_base {
+		int param1;
+		float param2;
+};
