@@ -45,18 +45,29 @@ l_brace = Literal('{')
 r_brace = Literal('}')
 semi = Literal(';')
 equals = Literal('=');
+colon = Literal(':')
 
 type_lit = (custom_lit ^ int_lit ^ float_lit ^ bool_lit ^ string_lit ^ vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit).setName('type')
 full_type_lit = Group(type_lit + Optional(array_lit))
 
+parent_group = Suppress(colon) + identifier
+
 var = Group(full_type_lit + identifier + Suppress(semi))
 
 def create_struct(s, l, t):
-	name = t[0]
+	# the type can have an optional parent
+	name = t[0][0]
+	parent = parent = t[0][1] if len(t[0]) > 1 else None
 	s = Struct(name)
 	structs[name] = s
 	# add the members
 	if len(t) > 1:
+		# add the parents members first
+		if parent:
+			p = structs[parent]
+			for member in p.members:
+				s.add_member(member)
+
 		for member in t[1]:
 			type = member[0]
 			name = member[1]
@@ -72,15 +83,17 @@ def create_type_alias(s, l, t):
 
 def process_import(s, l, t):
 	import_name = ''.join(t)
-	print import_name
-	exit(1)
+	r = open(import_name).read()
+	grobb_file.parseString(r)
 
 type_alias = {}
 structs = {}
 
-type_group = ((vec2_type_lit | vec3_type_lit | vec4_type_lit | mat2_type_lit | mat3_type_lit | mat4_type_lit) 
-	+ Suppress(equals) + string_value + Suppress(semi)).setParseAction(create_type_alias)
-struct_group = (Suppress(struct_lit) + identifier + Suppress(l_brace) + Group(OneOrMore(var)) + Suppress(r_brace + semi)).setParseAction(create_struct)
+type_group = ((vec2_type_lit | vec3_type_lit | vec4_type_lit | mat2_type_lit | mat3_type_lit | mat4_type_lit)
+			  + Suppress(equals) + string_value + Suppress(semi)).setParseAction(create_type_alias)
+
+struct_group = (Suppress(struct_lit) + Group(identifier + Optional(parent_group)) + Suppress(l_brace) 
+				+ Group(OneOrMore(var)) + Suppress(r_brace + semi)).setParseAction(create_struct)
 
 import_group = (Suppress(import_lit) + filename_lit).setParseAction(process_import)
 
@@ -164,7 +177,7 @@ def topological_sort():
 
 
 r = open(sys.argv[1]).read()
-res = grobb_file.parseString(r)
+grobb_file.parseString(r)
 
 # perform a topological sort over the types so we can print them in non-dependant order
 order = topological_sort()
