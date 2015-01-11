@@ -1,9 +1,0 @@
-{% for struct in structs %}
-struct {{ struct.name }}
-{
-	{% for member in struct.members %}
-	{{ member.type }} {{ member.name}};
-	{% endfor %}
-};
-
-{% endfor %}

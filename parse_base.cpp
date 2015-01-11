@@ -1,102 +1,171 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <ctype.h>
+#include "parse_base.hpp"
+#include "input_buffer.hpp"
 
-struct InputBuf
+//-----------------------------------------------------------------------------
+bool ParseBool(InputBuffer& buf, bool* res)
 {
-	InputBuf() : buf(nullptr), idx(0), len(0) {}
-	InputBuf(const char* buf, size_t len): buf(buf), idx(0), len(len) {}
+  size_t start = buf._idx;
+  size_t end;
+  CHECKED_OP(buf.SkipWhile(InputBuffer::IsAlphaNum, &end));
 
-	bool Peek(char* res)
-	{
-		if (Eof())
-			return false
+  string str;
+  CHECKED_OP(buf.SubStr(start, end - start, &str));
 
-		*res = buf[idx];
-		return true;
-	}
+  if (str == "true")
+  {
+    *res = true;
+    return true;
+  }
 
-	bool Consume()
-	{
-		if (Eof())
-			return false;
+  if (str == "false")
+  {
+    *res = false;
+    return true;
+  }
 
-		++idx;
-		return true;
-	}
+  return false;
+}
 
-	bool Eof() {
-		return idx == len;
-	}
-
-	const char* buf;
-	size_t idx;
-	size_t len;
-};
-
-bool OneOf(InputBuf& buf, const char* str, size_len, int* res)
+//-----------------------------------------------------------------------------
+bool ParseFloat(InputBuffer& buf, float* res)
 {
   char ch;
-  if (!Peek(res))
-    return false;
+  CHECKED_OP(buf.OneOf("-+", 2, &ch));
+  bool neg = ch == '-';
 
-  *res = -1;
-  for (size_t i = 0; i < len; ++i)
+  int whole = 0;
+  // find whole part if one exists
+  while (true)
   {
-    if (ch == str[i])
+    CHECKED_OP(buf.Get(&ch));
+    if (!InputBuffer::IsDigit(ch))
     {
-      Consume();
-      *res = i;
       break;
+    }
+    whole = whole * 10 + (ch - '0');
+  }
+
+  float tmp = (neg ? -1.f : 1.f) * whole;
+
+  // If we ended on a '.', parse the fraction
+  if (ch == '.')
+  {
+    // fractional
+    int frac = 0;
+    int len = 0;
+    while (buf.Satifies(InputBuffer::IsDigit, &ch))
+    {
+      ++len;
+      frac = frac * 10 + (ch - '0');
+    }
+
+    if (len)
+    {
+      tmp += frac / powf(10.f, (float)len);
     }
   }
 
+  *res = tmp;
   return true;
 }
 
-#define CHECKED_CONSUME() if (!buf.Consume()) { return false; }
-
-bool ParseInt(InputBuf& buf, int* res)
+//-----------------------------------------------------------------------------
+bool ParseInt(InputBuffer& buf, int* res)
 {
-	int val = 0;
-	char ch;
-	if (!buf.Peek(&ch))
-		return false;
-
+  char ch;
+  CHECKED_OP(buf.OneOf("-+", 2, &ch));
   bool neg = ch == '-';
-  if (neg)
 
+  // read the first char, and make sure it's a digit
+  CHECKED_OP(buf.Satifies(InputBuffer::IsDigit, &ch));
 
+  int val = ch - '0';
+  while (buf.Satifies(InputBuffer::IsDigit, &ch))
+  {
+    val = val * 10 + (ch - '0');
+  }
 
-
-	if (buf.Peek() == '-') 
-	{
-		neg = true;
-		CHECKED_CONSUME();
-	}
-
-	char ch = buf.Peek();
-
-	while (true)
-	{
-		char ch = buf.Peek();
-		return true;
-	}
-
-	return false;
+  *res = (neg ? -1 : 1) * val;
+  return true;
 }
 
-int main(int argc, const char** argv)
+//-----------------------------------------------------------------------------
+template<int N>
+bool ParseVec(InputBuffer& buf, float* res)
 {
-	const char* t = "20";
-	InputBuf buf;
-	buf.buf = t;
-	buf.len = strlen(t);
+  // { x, y, z, w }
+  CHECKED_OP(buf.Expect('{'));
 
-	int res = -1;
-	ParseInt(buf, &res);
+  for (int i = 0; i < N; ++i)
+  {
+    buf.SkipWhitespace();
+    CHECKED_OP(ParseFloat(buf, &res[i]));
 
-	printf("%d\n", res);
+    if (i != N-1)
+    {
+      buf.SkipWhitespace();
+      CHECKED_OP(buf.Expect(','));
+    }
+  }
 
-	return 0;
+  buf.SkipWhitespace();
+  CHECKED_OP(buf.Expect('}'));
+  return true;
+}
+
+//-----------------------------------------------------------------------------
+bool ParseVec2(InputBuffer& buf, vec2* res)
+{
+  float tmp[2];
+  CHECKED_OP(ParseVec<2>(buf, tmp));
+  *res = vec2(tmp[0], tmp[1]);
+  return true;
+}
+
+//-----------------------------------------------------------------------------
+bool ParseMat2(InputBuffer& buf, mat2* res)
+{
+  // { {a, b}, {c, d} }
+  CHECKED_OP(buf.Expect('{'));
+  buf.SkipWhitespace();
+
+  float row0[2];
+  CHECKED_OP(ParseVec<2>(buf, row0));
+
+  buf.SkipWhitespace();
+  CHECKED_OP(buf.Expect(','));
+
+  float row1[2];
+  CHECKED_OP(ParseVec<2>(buf, row1));
+
+  buf.SkipWhitespace();
+  CHECKED_OP(buf.Expect('}'));
+
+  *res = mat2(row0[0], row0[1], row1[0], row1[1]);
+  return true;
+}
+
+//-----------------------------------------------------------------------------
+bool ParseString(InputBuffer& buf, string* res)
+{
+  CHECKED_OP(buf.SkipUntil('\'', true));
+  size_t start = buf._idx;
+  CHECKED_OP(buf.SkipUntil('\'', true));
+  size_t end = buf._idx;
+  return buf.SubStr(start, end - start, res);
+}
+
+//-----------------------------------------------------------------------------
+bool ParseIdentifier(InputBuffer& buf, string* res)
+{
+  // an identifier consists of 'id:', so we parse the id, and then find the trailing ':'
+  size_t start = buf._idx;
+  size_t end;
+  CHECKED_OP(buf.SkipWhile(InputBuffer::IsAlphaNum, &end));
+  
+  // find the trailing ':'
+  CHECKED_OP(buf.SkipUntil(':', true));
+
+  return buf.SubStr(start, end - start, res);
 }

@@ -1,0 +1,15 @@
+#pragma once
+
+{% for dep in deps %}
+#include "{{dep}}"
+{% endfor %}
+
+{% for struct in structs %}
+struct {{ struct.name }}
+{
+  {% for member in struct.members %}
+  {{ member.print_type }} {{ member.name}};
+  {% endfor %}
+};
+
+{% endfor %}

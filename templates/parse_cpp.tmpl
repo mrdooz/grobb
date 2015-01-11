@@ -1,0 +1,67 @@
+#include "parse_base.hpp"
+#include "{{parse_hpp}}"
+{% for dep in type_deps %}
+#include "{{dep}}"
+{% endfor %}
+{% for dep in parse_deps %}
+#include "{{dep}}"
+{% endfor %}
+
+{% for struct in structs %}
+bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res)
+{
+  CHECKED_OP(buf.Expect('{'));
+
+  string id;
+  while (true)
+  {
+    buf.SkipWhitespace();
+    // check for a closing tag
+    bool end;
+    if (buf.ConsumeIf('}', &end) && end)
+      break;
+
+    CHECKED_OP(ParseIdentifier(buf, &id));
+    buf.SkipWhitespace();
+
+    {% for member in struct.members %}
+    if (id == "{{ member.name }}")
+    {
+      {% if member.is_array %}
+      buf.SkipWhitespace();
+      CHECKED_OP(buf.Expect('['));
+
+      while (true)
+      {
+        buf.SkipWhitespace();
+
+        // check for the closing ']'
+        bool closing;
+        CHECKED_OP(buf.ConsumeIf(']', &closing));
+        if (closing)
+          break;
+
+        // parse the value
+        {{ member.inner_type }} value;
+        CHECKED_OP({{ member.parser }}(buf, &value));
+        res->{{ member.name }}.push_back(value);
+
+        buf.SkipWhitespace();
+        CHECKED_OP(buf.ConsumeIf(',', nullptr));
+      }
+      buf.SkipWhitespace();
+      CHECKED_OP(buf.Expect(';'));
+
+      {% else %}
+      CHECKED_OP({{ member.parser }}(buf, &res->{{ member.name }}));
+      buf.SkipWhitespace();
+      CHECKED_OP(buf.Expect(';'));
+      {% endif %}
+    }
+    {% endfor %}
+  }
+
+  return true;
+};
+
+{% endfor %}

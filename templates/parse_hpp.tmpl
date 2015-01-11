@@ -1,0 +1,10 @@
+#pragma once
+
+struct InputBuffer;
+{% for struct in structs %}
+struct {{ struct.name }};
+{% endfor %}
+
+{% for struct in structs %}
+bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res);
+{% endfor %}

@@ -1,4 +1,5 @@
-vec3_type = 'vec3';
+alias vec2 = vec2;
+alias vec3 = vec3;
 
 struct effect_base {
 	string factory;
