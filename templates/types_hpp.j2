@@ -1,4 +1,7 @@
 #pragma once
+{% if types_file %}
+#include "{{ types_file }}"
+{% endif %}
 
 {% if namespace %}
 namespace {{ namespace }} {

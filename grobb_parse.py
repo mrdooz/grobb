@@ -163,8 +163,11 @@ def underscore_to_sentence(str):
 	return ''.join(map(lambda x: x.title(), s))
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--lib_dir", help="location of additional cpp files", default='../', action="store")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("--lib_dir", help="location of additional cpp files", action="store")
+group.add_argument("--generate_lib", help='Should the library files also be generated', default=False, action='store_true')
 parser.add_argument("--namespace", action="store")
+parser.add_argument('--types_file', action='store')
 parser.add_argument("input")
 args = parser.parse_args()
 
@@ -179,6 +182,11 @@ parse(r)
 
 # perform a topological sort over the types so we can print them in non-dependant order
 order = GRAPH.topological_sort()
+
+def render_to_file(file, template_name, args):
+	template = ENV.get_template(template_name)
+	res = template.render(args)
+	open(file, 'wt').writelines(res)
 
 # output the generated code per module
 for module, ss in struct_by_module.iteritems():
@@ -216,31 +224,49 @@ for module, ss in struct_by_module.iteritems():
 		type_deps.append(dep_head + '.types.hpp')
 		parse_deps.append(dep_head + '.parse.hpp')
 
-	template = ENV.get_template('types_hpp.tmpl')
-	types_hpp = template.render({
+	# compute relative path from the output dir to the directory containing
+	# the parse types
+	types_file = None
+	if args.types_file:
+		head, tail = os.path.split(args.types_file)
+		if not head: head = './'
+		types_file = os.path.join(os.path.relpath(head, out_dir), tail)
+
+	render_to_file(types_hpp_file, 'types_hpp.j2', {
 		'structs': params, 
 		'type_deps': type_deps,
+		'types_file': types_file,
 		'namespace': args.namespace
 	})
-	open(types_hpp_file, 'wt').writelines(types_hpp)
 
-	template = ENV.get_template('parse_hpp.tmpl')
-	parse_hpp = template.render({
+	render_to_file(parse_hpp_file, 'parse_hpp.j2', {
 		'structs': params, 
 		'parse_deps': parse_deps,
+		'types_file': types_file,
 		'namespace': args.namespace
 	})
-	open(parse_hpp_file, 'wt').writelines(parse_hpp)
 
-	template = ENV.get_template('parse_cpp.tmpl')
-	parse_cpp = template.render({
+	render_to_file(parse_cpp_file, 'parse_cpp.j2', {
 		'structs': params, 
 		'parse_deps': parse_deps, 
 		'type_deps': type_deps, 
 		'parse_hpp': parse_hpp_base,
 		'types_hpp': types_hpp_base,
-		'lib_dir': args.lib_dir,
+		'types_file': types_file,
+		'lib_dir': args.lib_dir if args.lib_dir else '',
 		'namespace': args.namespace
 	})
-	open(parse_cpp_file, 'wt').writelines(parse_cpp)
 
+	if args.generate_lib:
+		files = { 
+			'input_buffer_hpp.j2': 'input_buffer.hpp',
+			'input_buffer_cpp.j2': 'input_buffer.cpp',
+			'parse_base_hpp.j2': 'parse_base.hpp',
+			'parse_base_cpp.j2': 'parse_base.cpp'
+		}
+
+		for t, f in files.iteritems():
+			render_to_file(os.path.join(out_dir, f), t, {
+				'namespace': args.namespace,
+				'types_file': types_file,
+			})

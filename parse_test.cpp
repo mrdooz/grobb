@@ -1,12 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "parse_base.hpp"
-#include "input_buffer.hpp"
+#include "gen/parse_base.hpp"
+#include "gen/input_buffer.hpp"
 #include "gen/demo_base.types.hpp"
 #include "gen/demo_base.parse.hpp"
 
+#include <functional>
+#include <string>
+#include <vector>
+
 using namespace test;
+
+namespace test
+{
+  using std::string;
+  using std::function;
+  using std::vector;
+}
 
 int main(int argc, const char** argv)
 {
@@ -31,9 +42,9 @@ int main(int argc, const char** argv)
 
   Msg1 m;
   if (ParseMsg1(buf, &m))
-  {
-    int a = 10;
-  }
+    printf("parse ok\n");
+  else
+    printf("parse failed\n");
 
 /*
   int res = -1;
