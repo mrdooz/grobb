@@ -163,7 +163,9 @@ def underscore_to_sentence(str):
 	return ''.join(map(lambda x: x.title(), s))
 
 parser = argparse.ArgumentParser()
-parser.add_argument("input", help="namespace to wrap generated code in")
+parser.add_argument("--lib_dir", help="location of additional cpp files", default='../', action="store")
+parser.add_argument("--namespace", action="store")
+parser.add_argument("input")
 args = parser.parse_args()
 
 out_dir = 'gen'
@@ -182,7 +184,7 @@ order = GRAPH.topological_sort()
 for module, ss in struct_by_module.iteritems():
 	# grab the structs that are in the current module
 	to_process = [x.name for x in order if x.name in ss]
-	args = []
+	params = []
 	for name in to_process:
 		s = structs[name]
 		members = []
@@ -194,7 +196,7 @@ for module, ss in struct_by_module.iteritems():
 				'inner_type': member.inner_type,
 				'parser': 'Parse' + member.inner_type.title()
 			})
-		args.append({ 
+		params.append({ 
 			'name': underscore_to_sentence(name), 
 			'members': members
 		})
@@ -215,14 +217,30 @@ for module, ss in struct_by_module.iteritems():
 		parse_deps.append(dep_head + '.parse.hpp')
 
 	template = ENV.get_template('types_hpp.tmpl')
-	types_hpp = template.render({'structs': args, 'type_deps': type_deps})
+	types_hpp = template.render({
+		'structs': params, 
+		'type_deps': type_deps,
+		'namespace': args.namespace
+	})
 	open(types_hpp_file, 'wt').writelines(types_hpp)
 
 	template = ENV.get_template('parse_hpp.tmpl')
-	parse_hpp = template.render({'structs': args, 'parse_deps': parse_deps})
+	parse_hpp = template.render({
+		'structs': params, 
+		'parse_deps': parse_deps,
+		'namespace': args.namespace
+	})
 	open(parse_hpp_file, 'wt').writelines(parse_hpp)
 
 	template = ENV.get_template('parse_cpp.tmpl')
-	parse_cpp = template.render({'structs': args, 'parse_deps': parse_deps, 'type_deps': type_deps, 'parse_hpp': parse_hpp_base})
+	parse_cpp = template.render({
+		'structs': params, 
+		'parse_deps': parse_deps, 
+		'type_deps': type_deps, 
+		'parse_hpp': parse_hpp_base,
+		'types_hpp': types_hpp_base,
+		'lib_dir': args.lib_dir,
+		'namespace': args.namespace
+	})
 	open(parse_cpp_file, 'wt').writelines(parse_cpp)
 

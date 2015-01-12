@@ -1,5 +1,9 @@
 #pragma once
 
+{% if namespace %}
+namespace {{ namespace }} {
+{% endif %}
+
 {% for dep in deps %}
 #include "{{dep}}"
 {% endfor %}
@@ -13,3 +17,7 @@ struct {{ struct.name }}
 };
 
 {% endfor %}
+
+{% if namespace %}
+}
+{% endif %}

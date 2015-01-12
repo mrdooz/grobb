@@ -1,5 +1,9 @@
 #pragma once
 
+{% if namespace %}
+namespace {{ namespace }} {
+{% endif %}
+
 struct InputBuffer;
 {% for struct in structs %}
 struct {{ struct.name }};
@@ -8,3 +12,7 @@ struct {{ struct.name }};
 {% for struct in structs %}
 bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res);
 {% endfor %}
+
+{% if namespace %}
+}
+{% endif %}

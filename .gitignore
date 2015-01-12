@@ -1,2 +1,9 @@
 *.sln
 *.pyproj
+Debug/*
+gen/*
+ParseTest/*
+*.pyc
+*.suo
+*.sdf
+*.opensdf

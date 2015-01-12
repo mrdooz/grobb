@@ -1,11 +1,17 @@
-#include "parse_base.hpp"
-#include "{{parse_hpp}}"
+#include "{{ lib_dir }}parse_base.hpp"
+#include "{{ lib_dir }}input_buffer.hpp"
+#include "{{ parse_hpp }}"
+#include "{{ types_hpp }}"
 {% for dep in type_deps %}
 #include "{{dep}}"
 {% endfor %}
 {% for dep in parse_deps %}
 #include "{{dep}}"
 {% endfor %}
+
+{% if namespace %}
+namespace {{ namespace }} {
+{% endif %}
 
 {% for struct in structs %}
 bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res)
@@ -65,3 +71,7 @@ bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res)
 };
 
 {% endfor %}
+
+{% if namespace %}
+}
+{% endif %}
