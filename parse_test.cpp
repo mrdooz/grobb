@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 #include "gen/parse_base.hpp"
 #include "gen/input_buffer.hpp"
+#include "gen/output_buffer.hpp"
 #include "gen/demo_base.types.hpp"
 #include "gen/demo_base.parse.hpp"
 #include "parse_types.hpp"
@@ -10,54 +12,15 @@
 using namespace test;
 using namespace std;
 
+#pragma warning(disable: 4996)
+
 namespace test 
 {
-struct OutputBuffer
-{
-  OutputBuffer() : _ofs(0), _capacity(32), _buf(_capacity) {}
 
-  void EnsureCapacity(size_t required)
-  {
-    if (_capacity - _ofs < required)
-    {
-      size_t newSize = 2 * max(required, _capacity);
-      _buf.resize(newSize);
-      _capacity = newSize;
-    }
-  }
-
-  char* Cur()
-  {
-    return _buf.data() + _ofs;
-  }
-
-  size_t _ofs;
-  size_t _capacity;
-  vector<char> _buf;
-};
-
-void WriteBool(OutputBuffer& buffer, int indent, const char* member, bool value)
-{
-  buffer.EnsureCapacity(strlen(member) + indent + 16);
-  buffer._ofs += sprintf(buffer.Cur(), "%*s: %s;\n", indent, member, value ? "true" : false);
-}
-
-void WriteInt(OutputBuffer& buffer, int indent, const char* member, int value)
-{
-  buffer.EnsureCapacity(strlen(member) + indent + 32);
-  buffer._ofs += sprintf(buffer.Cur(), "%s: %d;\n", member, value);
-}
-
-void WriteFloat(OutputBuffer& buffer, int indent, const char* member, float value)
-{
-  buffer.EnsureCapacity(strlen(member) + indent + 32);
-  buffer._ofs += sprintf(buffer.Cur(), "%s: %f;\n", member, value);
-}
-
-void WriteMsg1(OutputBuffer& buffer,int indent, const Msg1& msg)
+void WriteMsg1(OutputBuffer& buffer,int indent, const char* message, const Msg1& msg)
 {
   buffer._ofs += sprintf(buffer.Cur(), "%*s", indent, "{\n");
-  WriteBool(buffer, 4, "m1", msg.m1);
+  Serialize(buffer, 4, "m1", msg.m1);
 
   buffer._ofs += sprintf(buffer.Cur(), "};\n");
 }
@@ -91,7 +54,7 @@ int main(int argc, const char** argv)
   {
     printf("parse ok\n");
     OutputBuffer b;
-    WriteMsg1(b, 0, m);
+    WriteMsg1(b, 0, "m", m);
     printf("%s\n", string(b._buf.data(), b._ofs).c_str());
   }
   else
