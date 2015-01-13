@@ -66,11 +66,20 @@ bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res)
     }
     {% endfor %}
   }
-
   return true;
-};
+}
 
 {% endfor %}
+
+{% for struct in structs %}
+void Write{{ struct.name }}(OutputBuffer& buf, const {{ struct.name }}& msg)
+{
+  {% for member in struct.members %}
+  {{ member.writer }}(buf, 0, "{{ member.name }}", msg.{{ member.name }});
+  {% endfor %}
+}
+{% endfor %}
+
 
 {% if namespace %}
 }

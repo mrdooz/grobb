@@ -8,12 +8,17 @@ namespace {{ namespace }} {
 {% endif %}
 
 struct InputBuffer;
+struct OutputBuffer;
 {% for struct in structs %}
 struct {{ struct.name }};
 {% endfor %}
 
 {% for struct in structs %}
 bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res);
+{% endfor %}
+
+{% for struct in structs %}
+void Write{{ struct.name }}(OutputBuffer& buf, const {{ struct.name }}& msg);
 {% endfor %}
 
 {% if namespace %}

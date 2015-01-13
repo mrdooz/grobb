@@ -202,7 +202,8 @@ for module, ss in struct_by_module.iteritems():
 				'is_array': member.is_array,
 				'print_type': member.print_type,
 				'inner_type': member.inner_type,
-				'parser': 'Parse' + member.inner_type.title()
+				'parser': 'Parse' + member.inner_type.title(),
+				'writer': 'Write' + member.inner_type.title()
 			})
 		params.append({ 
 			'name': underscore_to_sentence(name), 
