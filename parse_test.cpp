@@ -14,20 +14,6 @@ using namespace std;
 
 #pragma warning(disable: 4996)
 
-namespace test 
-{
-
-void WriteMsg1(OutputBuffer& buffer,int indent, const char* message, const Msg1& msg)
-{
-  buffer._ofs += sprintf(buffer.Cur(), "%*s", indent, "{\n");
-  Serialize(buffer, 4, "m1", msg.m1);
-
-  buffer._ofs += sprintf(buffer.Cur(), "};\n");
-}
-
-}
-
-
 int main(int argc, const char** argv)
 {
 //   struct Msg1
@@ -49,18 +35,36 @@ int main(int argc, const char** argv)
   buf._buf = t;
   buf._len = strlen(t);
 
+  bool parseOk = false;
+  bool parse2Ok = false;
+  bool cmpOk = false;
+
   Msg1 m;
-  if (ParseMsg1(buf, &m))
+  parseOk = ParseMsg1(buf, &m);
+  if (parseOk)
   {
-    printf("parse ok\n");
     OutputBuffer b;
-    WriteMsg1(b, 0, "m", m);
+    Serialize(b, m);
     printf("%s\n", string(b._buf.data(), b._ofs).c_str());
+
+    Msg1 m2;
+    InputBuffer buf2;
+    buf2._buf = b._buf.data();
+    buf2._len = b._ofs;
+    parse2Ok = ParseMsg1(buf2, &m2);
+    if (parse2Ok)
+    {
+      cmpOk = m.aa1v == m2.aa1v;
+    }
   }
-  else
-  {
-    printf("parse failed\n");
-  }
+
+  printf("parse: %s, parse2: %s, cmp: %s\n", parseOk ? "Y" : "N", parse2Ok ? "Y" : "N", cmpOk ? "Y" : "N");
+
+  OutputBuffer b2;
+  Msg2 mx;
+  Serialize(b2, mx);
+  printf("%s\n", string(b2._buf.data(), b2._ofs).c_str());
+
 
 /*
   int res = -1;

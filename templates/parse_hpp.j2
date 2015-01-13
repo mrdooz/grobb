@@ -18,7 +18,8 @@ bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res);
 {% endfor %}
 
 {% for struct in structs %}
-void Write{{ struct.name }}(OutputBuffer& buf, const {{ struct.name }}& msg);
+void Serialize(OutputBuffer& buf, const {{ struct.name }}& msg);
+void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ struct.name }}& msg);
 {% endfor %}
 
 {% if namespace %}

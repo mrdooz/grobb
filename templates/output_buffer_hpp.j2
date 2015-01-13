@@ -1,0 +1,23 @@
+#pragma once
+{% if types_file %}
+#include "{{ types_file }}"
+{% endif %}
+
+{% if namespace %}
+namespace {{ namespace }} {
+{% endif %}
+
+struct OutputBuffer
+{
+OutputBuffer();
+void EnsureCapacity(size_t required);
+char* Cur();
+
+size_t _ofs;
+size_t _capacity;
+vector<char> _buf;
+};
+
+{% if namespace %}
+}
+{% endif %}

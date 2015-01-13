@@ -203,7 +203,7 @@ for module, ss in struct_by_module.iteritems():
 				'print_type': member.print_type,
 				'inner_type': member.inner_type,
 				'parser': 'Parse' + member.inner_type.title(),
-				'writer': 'Write' + member.inner_type.title()
+				'writer': 'Serialize'
 			})
 		params.append({ 
 			'name': underscore_to_sentence(name), 
@@ -262,6 +262,8 @@ for module, ss in struct_by_module.iteritems():
 		files = { 
 			'input_buffer_hpp.j2': 'input_buffer.hpp',
 			'input_buffer_cpp.j2': 'input_buffer.cpp',
+			'output_buffer_hpp.j2': 'output_buffer.hpp',
+			'output_buffer_cpp.j2': 'output_buffer.cpp',
 			'parse_base_hpp.j2': 'parse_base.hpp',
 			'parse_base_cpp.j2': 'parse_base.cpp'
 		}

@@ -72,12 +72,25 @@ bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res)
 {% endfor %}
 
 {% for struct in structs %}
-void Write{{ struct.name }}(OutputBuffer& buf, const {{ struct.name }}& msg)
+void Serialize(OutputBuffer& buf, const {{ struct.name }}& msg)
+{
+  buf.EnsureCapacity(32);
+  buf._ofs += sprintf(buf.Cur(), "{\n");
+
+  {% for member in struct.members %}
+  {{ member.writer }}(buf, 2, "{{ member.name }}", msg.{{ member.name }});
+  {% endfor %}
+
+  buf._ofs += sprintf(buf.Cur(), "};\n");
+}
+
+void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ struct.name }}& msg)
 {
   {% for member in struct.members %}
-  {{ member.writer }}(buf, 0, "{{ member.name }}", msg.{{ member.name }});
+  {{ member.writer }}(buf, indent, "{{ member.name }}", msg.{{ member.name }});
   {% endfor %}
 }
+
 {% endfor %}
 
 

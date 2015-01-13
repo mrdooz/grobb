@@ -2,6 +2,9 @@
 #include <math.h>
 #include "parse_base.hpp"
 #include "input_buffer.hpp"
+#include "output_buffer.hpp"
+
+#pragma warning(disable: 4996)
 
 {% if namespace %}
 namespace {{ namespace }} {
@@ -158,7 +161,7 @@ bool ParseString(InputBuffer& buf, string* res)
   size_t start = buf._idx;
   CHECKED_OP(buf.SkipUntil('\'', true));
   size_t end = buf._idx;
-  return buf.SubStr(start, end - start, res);
+  return buf.SubStr(start, end - start - 1, res);
 }
 
 //-----------------------------------------------------------------------------
@@ -175,7 +178,97 @@ bool ParseIdentifier(InputBuffer& buf, string* res)
   return buf.SubStr(start, end - start, res);
 }
 
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, bool value)
+{
+  buffer.EnsureCapacity(16);
+  buffer._ofs += sprintf(buffer.Cur(), "%s", value ? "true" : "false");
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, int value)
+{
+  buffer.EnsureCapacity(32);
+  buffer._ofs += sprintf(buffer.Cur(), "%d", value);
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, float value)
+{
+  buffer.EnsureCapacity(32);
+  buffer._ofs += sprintf(buffer.Cur(), "%f", value);
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, const string& value)
+{
+  buffer.EnsureCapacity(value.size());
+  buffer._ofs += sprintf(buffer.Cur(), "'%s'", value.c_str());
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, const vec2& value)
+{
+  buffer.EnsureCapacity(2 * 32); 
+  buffer._ofs += sprintf(buffer.Cur(), "{ %f, %f }", value.x, value.y);
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, const mat2& value)
+{
+  buffer.EnsureCapacity(4 * 32);
+  buffer._ofs += sprintf(buffer.Cur(), "{ %f, %f }, { %f, %f} }", value.m00, value.m01, value.m10, value.m11);  
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, int indent, const char* member, bool value)
+{
+  int len = strlen(member);
+  buffer.EnsureCapacity(len + indent + 16);
+  buffer._ofs += sprintf(buffer.Cur(), "%*s: %s;\n", len + indent, member, value ? "true" : "false");
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, int indent, const char* member, int value)
+{
+  int len = strlen(member);
+  buffer.EnsureCapacity(len + indent + 32);
+  buffer._ofs += sprintf(buffer.Cur(), "%*s: %d;\n", len + indent, member, value);
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, int indent, const char* member, float value)
+{
+  int len = strlen(member);
+  buffer.EnsureCapacity(len + indent + 32);
+  buffer._ofs += sprintf(buffer.Cur(), "%*s: %f;\n", len + indent, member, value);
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, int indent, const char* member, const string& value)
+{
+  int len = strlen(member);
+  buffer.EnsureCapacity(len + indent + value.size());
+  buffer._ofs += sprintf(buffer.Cur(), "%*s: '%s';\n", len + indent, member, value.c_str());
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, int indent, const char* member, const vec2& value)
+{
+  int len = strlen(member);
+  buffer.EnsureCapacity(len + indent + 2 * 32); 
+  buffer._ofs += sprintf(buffer.Cur(), "%*s: { %f, %f };\n", len + indent, member, value.x, value.y);
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buffer, int indent, const char* member, const mat2& value)
+{
+  int len = strlen(member);
+  buffer.EnsureCapacity(len + indent + 4 * 32);
+  buffer._ofs += sprintf(buffer.Cur(), "%*s: { { %f, %f }, { %f, %f} };\n", len + indent, member, value.m00, value.m01, value.m10, value.m11);  
+}
+
+
 {% if namespace %}
 }
 {% endif %}
-
