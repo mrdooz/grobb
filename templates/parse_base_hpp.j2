@@ -19,34 +19,34 @@ bool ParseInt(InputBuffer& buf, int* res);
 bool ParseString(InputBuffer& buf, string* res);
 bool ParseIdentifier(InputBuffer& buf, string* res);
 
-void Serialize(OutputBuffer& buffer, bool value);
-void Serialize(OutputBuffer& buffer, int value);
-void Serialize(OutputBuffer& buffer, float value);
-void Serialize(OutputBuffer& buffer, const string& value);
-void Serialize(OutputBuffer& buffer, const vec2& value);
-void Serialize(OutputBuffer& buffer, const mat2& value);
-void Serialize(OutputBuffer& buffer, int indent, const char* member, bool value);
-void Serialize(OutputBuffer& buffer, int indent, const char* member, int value);
-void Serialize(OutputBuffer& buffer, int indent, const char* member, float value);
-void Serialize(OutputBuffer& buffer, int indent, const char* member, const string& value);
-void Serialize(OutputBuffer& buffer, int indent, const char* member, const vec2& value);
-void Serialize(OutputBuffer& buffer, int indent, const char* member, const mat2& value);
+void Serialize(OutputBuffer& buf, bool value);
+void Serialize(OutputBuffer& buf, int value);
+void Serialize(OutputBuffer& buf, float value);
+void Serialize(OutputBuffer& buf, const string& value);
+void Serialize(OutputBuffer& buf, const vec2& value);
+void Serialize(OutputBuffer& buf, const mat2& value);
+void Serialize(OutputBuffer& buf, int indent, const char* member, bool value);
+void Serialize(OutputBuffer& buf, int indent, const char* member, int value);
+void Serialize(OutputBuffer& buf, int indent, const char* member, float value);
+void Serialize(OutputBuffer& buf, int indent, const char* member, const string& value);
+void Serialize(OutputBuffer& buf, int indent, const char* member, const vec2& value);
+void Serialize(OutputBuffer& buf, int indent, const char* member, const mat2& value);
 
 template <typename T>
-void Serialize(OutputBuffer& buffer, int indent, const char* member, const vector<T>& value)
+void Serialize(OutputBuffer& buf, int indent, const char* member, const vector<T>& value)
 {
   int len = strlen(member);
-  buffer.EnsureCapacity(len + indent + 16 + 8 * value.size());
-  buffer._ofs += sprintf(buffer.Cur(), "%*s: [", len + indent, member);
+  buf.EnsureCapacity(len + indent + 16 + 8 * value.size());
+  buf._ofs += sprintf(buf.Cur(), "%*s: [", len + indent, member);
   for (size_t i = 0, e = value.size(); i < e; ++i)
   {
-    Serialize(buffer, value[i]);
+    Serialize(buf, value[i]);
     if (i != e - 1)
     {
-      buffer._ofs += sprintf(buffer.Cur(), ", ");
+      buf._ofs += sprintf(buf.Cur(), ", ");
     }
   }
-  buffer._ofs += sprintf(buffer.Cur(), "];\n");
+  buf._ofs += sprintf(buf.Cur(), "];\n");
 }
 
 {% if namespace %}

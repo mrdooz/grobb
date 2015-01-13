@@ -143,6 +143,7 @@ bool ParseMat2(InputBuffer& buf, mat2* res)
 
   buf.SkipWhitespace();
   CHECKED_OP(buf.Expect(','));
+  buf.SkipWhitespace();
 
   float row1[2];
   CHECKED_OP(ParseVec<2>(buf, row1));
@@ -179,93 +180,93 @@ bool ParseIdentifier(InputBuffer& buf, string* res)
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, bool value)
+void Serialize(OutputBuffer& buf, bool value)
 {
-  buffer.EnsureCapacity(16);
-  buffer._ofs += sprintf(buffer.Cur(), "%s", value ? "true" : "false");
+  buf.EnsureCapacity(16);
+  buf.Advance(sprintf(buf.Cur(), "%s", value ? "true" : "false"));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, int value)
+void Serialize(OutputBuffer& buf, int value)
 {
-  buffer.EnsureCapacity(32);
-  buffer._ofs += sprintf(buffer.Cur(), "%d", value);
+  buf.EnsureCapacity(32);
+  buf.Advance(sprintf(buf.Cur(), "%d", value));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, float value)
+void Serialize(OutputBuffer& buf, float value)
 {
-  buffer.EnsureCapacity(32);
-  buffer._ofs += sprintf(buffer.Cur(), "%f", value);
+  buf.EnsureCapacity(32);
+  buf.Advance(sprintf(buf.Cur(), "%f", value));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, const string& value)
+void Serialize(OutputBuffer& buf, const string& value)
 {
-  buffer.EnsureCapacity(value.size());
-  buffer._ofs += sprintf(buffer.Cur(), "'%s'", value.c_str());
+  buf.EnsureCapacity(value.size() + 8);
+  buf.Advance(sprintf(buf.Cur(), "'%s'", value.c_str()));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, const vec2& value)
+void Serialize(OutputBuffer& buf, const vec2& value)
 {
-  buffer.EnsureCapacity(2 * 32); 
-  buffer._ofs += sprintf(buffer.Cur(), "{ %f, %f }", value.x, value.y);
+  buf.EnsureCapacity(2 * 32); 
+  buf.Advance(sprintf(buf.Cur(), "{ %f, %f }", value.x, value.y));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, const mat2& value)
+void Serialize(OutputBuffer& buf, const mat2& value)
 {
-  buffer.EnsureCapacity(4 * 32);
-  buffer._ofs += sprintf(buffer.Cur(), "{ %f, %f }, { %f, %f} }", value.m00, value.m01, value.m10, value.m11);  
+  buf.EnsureCapacity(4 * 32);
+  buf.Advance(sprintf(buf.Cur(), "{ %f, %f }, { %f, %f} }", value.m00, value.m01, value.m10, value.m11));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, int indent, const char* member, bool value)
+void Serialize(OutputBuffer& buf, int indent, const char* member, bool value)
 {
   int len = strlen(member);
-  buffer.EnsureCapacity(len + indent + 16);
-  buffer._ofs += sprintf(buffer.Cur(), "%*s: %s;\n", len + indent, member, value ? "true" : "false");
+  buf.EnsureCapacity(len + indent + 16);
+  buf.Advance(sprintf(buf.Cur(), "%*s: %s;\n", len + indent, member, value ? "true" : "false"));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, int indent, const char* member, int value)
+void Serialize(OutputBuffer& buf, int indent, const char* member, int value)
 {
   int len = strlen(member);
-  buffer.EnsureCapacity(len + indent + 32);
-  buffer._ofs += sprintf(buffer.Cur(), "%*s: %d;\n", len + indent, member, value);
+  buf.EnsureCapacity(len + indent + 32);
+  buf.Advance(sprintf(buf.Cur(), "%*s: %d;\n", len + indent, member, value));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, int indent, const char* member, float value)
+void Serialize(OutputBuffer& buf, int indent, const char* member, float value)
 {
   int len = strlen(member);
-  buffer.EnsureCapacity(len + indent + 32);
-  buffer._ofs += sprintf(buffer.Cur(), "%*s: %f;\n", len + indent, member, value);
+  buf.EnsureCapacity(len + indent + 32);
+  buf.Advance(sprintf(buf.Cur(), "%*s: %f;\n", len + indent, member, value));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, int indent, const char* member, const string& value)
+void Serialize(OutputBuffer& buf, int indent, const char* member, const string& value)
 {
   int len = strlen(member);
-  buffer.EnsureCapacity(len + indent + value.size());
-  buffer._ofs += sprintf(buffer.Cur(), "%*s: '%s';\n", len + indent, member, value.c_str());
+  buf.EnsureCapacity(len + indent + value.size() + 32);
+  buf.Advance(sprintf(buf.Cur(), "%*s: '%s';\n", len + indent, member, value.c_str()));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, int indent, const char* member, const vec2& value)
+void Serialize(OutputBuffer& buf, int indent, const char* member, const vec2& value)
 {
   int len = strlen(member);
-  buffer.EnsureCapacity(len + indent + 2 * 32); 
-  buffer._ofs += sprintf(buffer.Cur(), "%*s: { %f, %f };\n", len + indent, member, value.x, value.y);
+  buf.EnsureCapacity(len + indent + 2 * 32); 
+  buf.Advance(sprintf(buf.Cur(), "%*s: { %f, %f };\n", len + indent, member, value.x, value.y));
 }
 
 //-----------------------------------------------------------------------------
-void Serialize(OutputBuffer& buffer, int indent, const char* member, const mat2& value)
+void Serialize(OutputBuffer& buf, int indent, const char* member, const mat2& value)
 {
   int len = strlen(member);
-  buffer.EnsureCapacity(len + indent + 4 * 32);
-  buffer._ofs += sprintf(buffer.Cur(), "%*s: { { %f, %f }, { %f, %f} };\n", len + indent, member, value.m00, value.m01, value.m10, value.m11);  
+  buf.EnsureCapacity(len + indent + 4 * 32);
+  buf.Advance(sprintf(buf.Cur(), "%*s: { { %f, %f }, { %f, %f } };\n", len + indent, member, value.m00, value.m01, value.m10, value.m11));  
 }
 
 

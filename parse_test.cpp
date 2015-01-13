@@ -59,11 +59,19 @@ int main(int argc, const char** argv)
   }
 
   printf("parse: %s, parse2: %s, cmp: %s\n", parseOk ? "Y" : "N", parse2Ok ? "Y" : "N", cmpOk ? "Y" : "N");
+  {
+    OutputBuffer b;
+    Msg3 mx;
+    Serialize(b, mx);
+    printf("%s\n", string(b._buf.data(), b._ofs).c_str());
 
-  OutputBuffer b2;
-  Msg2 mx;
-  Serialize(b2, mx);
-  printf("%s\n", string(b2._buf.data(), b2._ofs).c_str());
+    Msg3 m2;
+    InputBuffer buf;
+    buf._buf = b._buf.data();
+    buf._len = b._ofs;
+    parse2Ok = ParseMsg3(buf, &m2);
+    printf("msg2: %s\n", parse2Ok ? "Y" : "N");
+  }
 
 
 /*

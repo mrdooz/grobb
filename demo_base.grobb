@@ -29,3 +29,7 @@ struct msg2 {
 	msg1 aa;
 	mat2 bb;
 };
+
+struct msg3 {
+	msg2 aa;
+};

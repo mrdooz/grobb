@@ -17,6 +17,8 @@ struct {{ struct.name }};
 bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res);
 {% endfor %}
 
+// Functions are created for both the case when the struct is a top-level struct,
+// and for when it's a member of another struct
 {% for struct in structs %}
 void Serialize(OutputBuffer& buf, const {{ struct.name }}& msg);
 void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ struct.name }}& msg);
