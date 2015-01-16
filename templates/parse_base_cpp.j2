@@ -122,6 +122,7 @@ bool ParseVec(InputBuffer& buf, float* res)
   return true;
 }
 
+{% if not basic_types %}
 //-----------------------------------------------------------------------------
 bool ParseVec2(InputBuffer& buf, vec2* res)
 {
@@ -154,7 +155,7 @@ bool ParseMat2(InputBuffer& buf, mat2* res)
   *res = mat2(row0[0], row0[1], row1[0], row1[1]);
   return true;
 }
-
+{% endif %}
 //-----------------------------------------------------------------------------
 bool ParseString(InputBuffer& buf, string* res)
 {
@@ -207,6 +208,7 @@ void Serialize(OutputBuffer& buf, const string& value)
   buf.Advance(sprintf(buf.Cur(), "'%s'", value.c_str()));
 }
 
+{% if not basic_types %}
 //-----------------------------------------------------------------------------
 void Serialize(OutputBuffer& buf, const vec2& value)
 {
@@ -220,7 +222,7 @@ void Serialize(OutputBuffer& buf, const mat2& value)
   buf.EnsureCapacity(4 * 32);
   buf.Advance(sprintf(buf.Cur(), "{ %f, %f }, { %f, %f} }", value.m00, value.m01, value.m10, value.m11));
 }
-
+{% endif %}
 //-----------------------------------------------------------------------------
 void Serialize(OutputBuffer& buf, int indent, const char* member, bool value)
 {
@@ -253,6 +255,7 @@ void Serialize(OutputBuffer& buf, int indent, const char* member, const string& 
   buf.Advance(sprintf(buf.Cur(), "%*s: '%s';\n", len + indent, member, value.c_str()));
 }
 
+{% if not basic_types %}
 //-----------------------------------------------------------------------------
 void Serialize(OutputBuffer& buf, int indent, const char* member, const vec2& value)
 {
@@ -268,6 +271,7 @@ void Serialize(OutputBuffer& buf, int indent, const char* member, const mat2& va
   buf.EnsureCapacity(len + indent + 4 * 32);
   buf.Advance(sprintf(buf.Cur(), "%*s: { { %f, %f }, { %f, %f } };\n", len + indent, member, value.m00, value.m01, value.m10, value.m11));  
 }
+{% endif %}
 
 
 {% if namespace %}

@@ -3,19 +3,43 @@ import os
 import graph
 import argparse
 import collections
+import glob
 from pyparsing import *
 from jinja2 import Environment, PackageLoader, FileSystemLoader
 
-ENV = Environment(loader=FileSystemLoader('./templates'), lstrip_blocks=True, trim_blocks=True)
+def underscore_to_sentence(str):
+	s = str.split('_')
+	return ''.join(map(lambda x: x.title(), s))
+
+def render_to_file(file, template_name, args):
+	template = ENV.get_template(template_name)
+	res = template.render(args)
+	open(file, 'wt').writelines(res)
+
+def safe_mkdir(path):
+	try:
+		os.mkdir(path)
+	except OSError:
+		pass
+
+builtin_types = set(['int', 'float', 'bool', 'string', 'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'])
+
+# to ensure that the script can be run from any dir, we need to extract
+# the script dir to use as a base
+script_dir, _ = os.path.split(os.path.realpath(__file__))
+template_dir = os.path.join(script_dir, 'templates')
+ENV = Environment(loader=FileSystemLoader(template_dir), lstrip_blocks=True, trim_blocks=True)
+
 GRAPH = graph.Graph()
 
-# all the currently loaded modules (tail is the newest)
+# all the currently loaded modules (tail is the newest). stored as (path, file)
 module_stack = []
 processed_modules = set()
 struct_by_module = collections.defaultdict(set)
 dependencies = collections.defaultdict(set)
 
-builtin_types = set(['int', 'float', 'bool', 'string', 'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'])
+type_alias = {}
+structs = {}
 
 def parse(input):
 	# keywords
@@ -75,14 +99,6 @@ def parse(input):
 
 	grobb_file.parseString(input)
 
-type_alias = {}
-structs = {}
-
-def safe_mkdir(path):
-	try:
-		os.mkdir(path)
-	except OSError:
-		pass
 
 def create_struct(s, l, t):
 	# the type can have an optional parent
@@ -113,12 +129,15 @@ def create_type_alias(s, l, t):
 
 def process_import(s, l, t):
 	import_name = ''.join(t)
-	cur_module = module_stack[-1]
-	dependencies[cur_module].add(import_name)
+	(module_path, module_name) = module_stack[-1]
+	dependencies[module_name].add(import_name)
 	# if the module hasn't been seen already, add it to the processing stack, and parse it
 	if not import_name in processed_modules:
-		module_stack.append(import_name)
-		r = open(import_name).read()
+		# the imported module has the same path as the one that imported it. yeah, this
+		# will break for more complicated relative imports, but i'll solve that when i
+		# get there :)
+		module_stack.append((module_path, import_name))
+		r = open(os.path.join(module_path, import_name)).read()
 		parse(r)
 		processed_modules.add(import_name)
 		module_stack.pop()
@@ -148,7 +167,7 @@ class Struct():
 		self.name = name
 		self.members = []
 		GRAPH.add_node(name)
-		self.module = module_stack[-1]
+		self.module_path, self.module = module_stack[-1]
 		struct_by_module[self.module].add(name)
 
 	def __repr__(self):
@@ -162,134 +181,141 @@ class Struct():
 			n = member.type
 			GRAPH.add_node(n, self.name)
 
-def underscore_to_sentence(str):
-	s = str.split('_')
-	return ''.join(map(lambda x: x.title(), s))
+
+def process_file(args, first_file, filename):
+	# note, we drop the directory part of the input when we save to module_name
+	_, module_name = os.path.split(filename)
+	p = os.path.dirname(os.path.realpath(filename))
+	module_path = os.path.join(p, module_name)
+	module_stack.append((p, module_name))
+	r = file(module_path).read()
+	parse(r)
+
+	# perform a topological sort over the types so we can print them in non-dependant order
+	order = GRAPH.topological_sort()
+
+	# output the generated code per module
+	for module, ss in struct_by_module.iteritems():
+		# grab the structs that are in the current module
+		to_process = [x.name for x in order if x.name in ss]
+		params = []
+		for name in to_process:
+			s = structs[name]
+			members = []
+			for member in s.members:
+				members.append({
+					'name': member.name, 
+					'is_array': member.is_array,
+					'print_type': member.print_type,
+					'inner_type': member.inner_type,
+					'parser': 'Parse' + member.inner_type.title(),
+					'writer': 'Serialize'
+				})
+			params.append({ 
+				'name': underscore_to_sentence(name), 
+				'members': members
+			})
+
+		module_base, tail = os.path.splitext(module)
+		types_hpp_base = module_base + '.types.hpp'
+		parse_hpp_base = module_base + '.parse.hpp'
+		parse_cpp_base = module_base + '.parse.cpp'
+		types_hpp_file = os.path.join(out_dir, types_hpp_base)
+		parse_hpp_file = os.path.join(out_dir, parse_hpp_base)
+		parse_cpp_file = os.path.join(out_dir, parse_cpp_base)
+
+		type_deps = []
+		parse_deps = []
+		for dep in dependencies[module]:
+			dep_head, _ = os.path.splitext(dep)
+			type_deps.append(dep_head + '.types.hpp')
+			parse_deps.append(dep_head + '.parse.hpp')
+
+		# compute relative path from the output dir to the directory containing
+		# the parse types
+		types_file = None
+		if args.types_file:
+			head, tail = os.path.split(args.types_file)
+			if not head: head = './'
+			types_file = os.path.join(os.path.relpath(head, out_dir), tail)
+
+		render_to_file(types_hpp_file, 'types_hpp.j2', {
+			'structs': params, 
+			'type_deps': type_deps,
+			'types_file': types_file,
+			'basic_types': args.basic_types,
+			'namespace': args.namespace
+		})
+
+		render_to_file(parse_hpp_file, 'parse_hpp.j2', {
+			'structs': params, 
+			'parse_deps': parse_deps,
+			'types_file': types_file,
+			'basic_types': args.basic_types,
+			'namespace': args.namespace
+		})
+
+		render_to_file(parse_cpp_file, 'parse_cpp.j2', {
+			'structs': params, 
+			'parse_deps': parse_deps, 
+			'type_deps': type_deps, 
+			'parse_hpp': parse_hpp_base,
+			'types_hpp': types_hpp_base,
+			'types_file': types_file,
+			'lib_dir': args.lib_dir if args.lib_dir else '',
+			'basic_types': args.basic_types,
+			'namespace': args.namespace
+		})
+
+		if args.imgui:
+			imgui_hpp_base = module_base + '.imgui.hpp'
+			imgui_cpp_base = module_base + '.imgui.cpp'
+			imgui_hpp_file = os.path.join(out_dir, imgui_hpp_base)
+			imgui_cpp_file = os.path.join(out_dir, imgui_cpp_base)
+
+			params = {
+				'structs': params, 
+				'type_deps': type_deps,
+				'types_file': types_file,
+				'namespace': args.namespace
+			}
+			render_to_file(imgui_hpp_file, 'imgui_hpp.j2', params)
+			render_to_file(imgui_cpp_file, 'imgui_cpp.j2', params)
+
+		if args.generate_lib and first_file:
+			files = { 
+				'input_buffer_hpp.j2': 'input_buffer.hpp',
+				'input_buffer_cpp.j2': 'input_buffer.cpp',
+				'output_buffer_hpp.j2': 'output_buffer.hpp',
+				'output_buffer_cpp.j2': 'output_buffer.cpp',
+				'parse_base_hpp.j2': 'parse_base.hpp',
+				'parse_base_cpp.j2': 'parse_base.cpp'
+			}
+
+			for t, f in files.iteritems():
+				render_to_file(os.path.join(out_dir, f), t, {
+					'namespace': args.namespace,
+					'basic_types': args.basic_types,
+					'types_file': types_file,
+				})
+
 
 parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group()
 group.add_argument("--lib_dir", help="location of additional cpp files", action="store")
 group.add_argument("--generate_lib", help='Should the library files also be generated', default=False, action='store_true')
 parser.add_argument("--namespace", action="store")
+parser.add_argument("--out_dir", help='Output directory', action='store', default='gen')
+parser.add_argument("--basic_types", help='Only generate code for basic types (no vector/matrix)', action='store_true')
 parser.add_argument('--types_file', action='store')
 parser.add_argument('--imgui', action='store_true')
 parser.add_argument("input")
 args = parser.parse_args()
 
-out_dir = 'gen'
+out_dir = args.out_dir
 safe_mkdir(out_dir)
 
-module_name = args.input
-module_stack.append(module_name)
-r = file(module_name).read()
-
-parse(r)
-
-# perform a topological sort over the types so we can print them in non-dependant order
-order = GRAPH.topological_sort()
-
-def render_to_file(file, template_name, args):
-	template = ENV.get_template(template_name)
-	res = template.render(args)
-	open(file, 'wt').writelines(res)
-
-# output the generated code per module
-for module, ss in struct_by_module.iteritems():
-	# grab the structs that are in the current module
-	to_process = [x.name for x in order if x.name in ss]
-	params = []
-	for name in to_process:
-		s = structs[name]
-		members = []
-		for member in s.members:
-			members.append({
-				'name': member.name, 
-				'is_array': member.is_array,
-				'print_type': member.print_type,
-				'inner_type': member.inner_type,
-				'parser': 'Parse' + member.inner_type.title(),
-				'writer': 'Serialize'
-			})
-		params.append({ 
-			'name': underscore_to_sentence(name), 
-			'members': members
-		})
-
-	module_base, tail = os.path.splitext(module)
-	types_hpp_base = module_base + '.types.hpp'
-	parse_hpp_base = module_base + '.parse.hpp'
-	parse_cpp_base = module_base + '.parse.cpp'
-	types_hpp_file = os.path.join(out_dir, types_hpp_base)
-	parse_hpp_file = os.path.join(out_dir, parse_hpp_base)
-	parse_cpp_file = os.path.join(out_dir, parse_cpp_base)
-
-	type_deps = []
-	parse_deps = []
-	for dep in dependencies[module]:
-		dep_head, _ = os.path.splitext(dep)
-		type_deps.append(dep_head + '.types.hpp')
-		parse_deps.append(dep_head + '.parse.hpp')
-
-	# compute relative path from the output dir to the directory containing
-	# the parse types
-	types_file = None
-	if args.types_file:
-		head, tail = os.path.split(args.types_file)
-		if not head: head = './'
-		types_file = os.path.join(os.path.relpath(head, out_dir), tail)
-
-	render_to_file(types_hpp_file, 'types_hpp.j2', {
-		'structs': params, 
-		'type_deps': type_deps,
-		'types_file': types_file,
-		'namespace': args.namespace
-	})
-
-	render_to_file(parse_hpp_file, 'parse_hpp.j2', {
-		'structs': params, 
-		'parse_deps': parse_deps,
-		'types_file': types_file,
-		'namespace': args.namespace
-	})
-
-	render_to_file(parse_cpp_file, 'parse_cpp.j2', {
-		'structs': params, 
-		'parse_deps': parse_deps, 
-		'type_deps': type_deps, 
-		'parse_hpp': parse_hpp_base,
-		'types_hpp': types_hpp_base,
-		'types_file': types_file,
-		'lib_dir': args.lib_dir if args.lib_dir else '',
-		'namespace': args.namespace
-	})
-
-	if args.imgui:
-		imgui_hpp_base = module_base + '.imgui.hpp'
-		imgui_cpp_base = module_base + '.imgui.cpp'
-		imgui_hpp_file = os.path.join(out_dir, imgui_hpp_base)
-		imgui_cpp_file = os.path.join(out_dir, imgui_cpp_base)
-
-		params = {
-			'structs': params, 
-			'type_deps': type_deps,
-			'types_file': types_file,
-			'namespace': args.namespace
-		}
-		render_to_file(imgui_hpp_file, 'imgui_hpp.j2', params)
-		render_to_file(imgui_cpp_file, 'imgui_cpp.j2', params)
-
-	if args.generate_lib:
-		files = { 
-			'input_buffer_hpp.j2': 'input_buffer.hpp',
-			'input_buffer_cpp.j2': 'input_buffer.cpp',
-			'output_buffer_hpp.j2': 'output_buffer.hpp',
-			'output_buffer_cpp.j2': 'output_buffer.cpp',
-			'parse_base_hpp.j2': 'parse_base.hpp',
-			'parse_base_cpp.j2': 'parse_base.cpp'
-		}
-
-		for t, f in files.iteritems():
-			render_to_file(os.path.join(out_dir, f), t, {
-				'namespace': args.namespace,
-				'types_file': types_file,
-			})
+first_file = True
+for input in glob.glob(args.input):
+	process_file(args, first_file, input)
+	first_file = False

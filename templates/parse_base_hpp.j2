@@ -14,8 +14,10 @@ struct InputBuffer;
 
 bool ParseBool(InputBuffer& buf, bool* res);
 bool ParseFloat(InputBuffer& buf, float* res);
+{% if not basic_types %}
 bool ParseVec2(InputBuffer& buf, vec2* res);
 bool ParseMat2(InputBuffer& buf, mat2* res);
+{% endif %}
 bool ParseInt(InputBuffer& buf, int* res);
 bool ParseString(InputBuffer& buf, string* res);
 bool ParseIdentifier(InputBuffer& buf, string* res);
@@ -24,14 +26,18 @@ void Serialize(OutputBuffer& buf, bool value);
 void Serialize(OutputBuffer& buf, int value);
 void Serialize(OutputBuffer& buf, float value);
 void Serialize(OutputBuffer& buf, const string& value);
+{% if not basic_types %}
 void Serialize(OutputBuffer& buf, const vec2& value);
 void Serialize(OutputBuffer& buf, const mat2& value);
+{% endif %}
 void Serialize(OutputBuffer& buf, int indent, const char* member, bool value);
 void Serialize(OutputBuffer& buf, int indent, const char* member, int value);
 void Serialize(OutputBuffer& buf, int indent, const char* member, float value);
 void Serialize(OutputBuffer& buf, int indent, const char* member, const string& value);
+{% if not basic_types %}
 void Serialize(OutputBuffer& buf, int indent, const char* member, const vec2& value);
 void Serialize(OutputBuffer& buf, int indent, const char* member, const mat2& value);
+{% endif %}
 
 template <typename T>
 void Serialize(OutputBuffer& buf, int indent, const char* member, const vector<T>& value)
