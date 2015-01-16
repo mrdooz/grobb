@@ -1,0 +1,23 @@
+#include "{{ lib_dir }}parse_base.hpp"
+#include "{{ lib_dir }}input_buffer.hpp"
+#include "{{ parse_hpp }}"
+#include "{{ types_hpp }}"
+{% for dep in type_deps %}
+#include "{{dep}}"
+{% endfor %}
+
+{% if namespace %}
+namespace {{ namespace }} {
+{% endif %}
+
+{% for struct in structs %}
+void Render{{ struct.name }}(const {{ struct.name }}& msg)
+{
+  
+}
+{% endfor %}
+
+
+{% if namespace %}
+}
+{% endif %}

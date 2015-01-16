@@ -3,7 +3,7 @@ import os
 import graph
 import argparse
 import collections
-from pyparsing import Word, Optional, ZeroOrMore, Suppress, OneOrMore, Group, ParseException, Literal, Keyword, alphas, alphanums
+from pyparsing import *
 from jinja2 import Environment, PackageLoader, FileSystemLoader
 
 ENV = Environment(loader=FileSystemLoader('./templates'), lstrip_blocks=True, trim_blocks=True)
@@ -51,6 +51,9 @@ def parse(input):
 	semi = Literal(';')
 	equals = Literal('=');
 	colon = Literal(':')
+	hashmark = '#'
+	comment = (hashmark + restOfLine).suppress()
+
 
 	builtin_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit ^ vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit
 	type_lit = (custom_lit ^ builtin_type_list)
@@ -68,6 +71,7 @@ def parse(input):
 	import_group = (Suppress(import_lit) + filename_lit).setParseAction(process_import)
 
 	grobb_file = ZeroOrMore(alias_group | struct_group | import_group)
+	grobb_file.ignore(comment)
 
 	grobb_file.parseString(input)
 
@@ -168,6 +172,7 @@ group.add_argument("--lib_dir", help="location of additional cpp files", action=
 group.add_argument("--generate_lib", help='Should the library files also be generated', default=False, action='store_true')
 parser.add_argument("--namespace", action="store")
 parser.add_argument('--types_file', action='store')
+parser.add_argument('--imgui', action='store_true')
 parser.add_argument("input")
 args = parser.parse_args()
 
@@ -210,10 +215,10 @@ for module, ss in struct_by_module.iteritems():
 			'members': members
 		})
 
-	head, tail = os.path.splitext(module)
-	types_hpp_base = head + '.types.hpp'
-	parse_hpp_base = head + '.parse.hpp'
-	parse_cpp_base = head + '.parse.cpp'
+	module_base, tail = os.path.splitext(module)
+	types_hpp_base = module_base + '.types.hpp'
+	parse_hpp_base = module_base + '.parse.hpp'
+	parse_cpp_base = module_base + '.parse.cpp'
 	types_hpp_file = os.path.join(out_dir, types_hpp_base)
 	parse_hpp_file = os.path.join(out_dir, parse_hpp_base)
 	parse_cpp_file = os.path.join(out_dir, parse_cpp_base)
@@ -257,6 +262,21 @@ for module, ss in struct_by_module.iteritems():
 		'lib_dir': args.lib_dir if args.lib_dir else '',
 		'namespace': args.namespace
 	})
+
+	if args.imgui:
+		imgui_hpp_base = module_base + '.imgui.hpp'
+		imgui_cpp_base = module_base + '.imgui.cpp'
+		imgui_hpp_file = os.path.join(out_dir, imgui_hpp_base)
+		imgui_cpp_file = os.path.join(out_dir, imgui_cpp_base)
+
+		params = {
+			'structs': params, 
+			'type_deps': type_deps,
+			'types_file': types_file,
+			'namespace': args.namespace
+		}
+		render_to_file(imgui_hpp_file, 'imgui_hpp.j2', params)
+		render_to_file(imgui_cpp_file, 'imgui_cpp.j2', params)
 
 	if args.generate_lib:
 		files = { 

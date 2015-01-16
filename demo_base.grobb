@@ -1,6 +1,7 @@
 alias vec2 = vec2;
 alias vec3 = vec3;
 
+# testing
 struct effect_base {
 	string factory;
 	int start;
@@ -8,7 +9,7 @@ struct effect_base {
 };
 
 struct demo {
-	int length;	
+	int length;
 };
 
 struct msg1 {
