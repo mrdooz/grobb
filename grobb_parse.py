@@ -277,6 +277,7 @@ def process_file(args, first_file, filename):
 				'structs': params, 
 				'type_deps': type_deps,
 				'types_file': types_file,
+				'types_hpp': types_hpp_base,
 				'namespace': args.namespace
 			}
 			render_to_file(imgui_hpp_file, 'imgui_hpp.j2', params)
