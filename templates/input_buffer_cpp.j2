@@ -21,6 +21,14 @@ InputBuffer::InputBuffer(const char* buf, size_t len)
 }
 
 //-----------------------------------------------------------------------------
+InputBuffer::InputBuffer(const vector<char>& buf)
+  : _buf(buf.data())
+  , _idx(0)
+  , _len(buf.size())
+{
+}
+
+//-----------------------------------------------------------------------------
 bool InputBuffer::Peek(char* res)
 {
   if (Eof())
@@ -147,7 +155,7 @@ bool InputBuffer::IsDigit(char ch)
 //-----------------------------------------------------------------------------
 bool InputBuffer::IsAlphaNum(char ch)
 {
-  return !!isalnum(ch);
+  return !!isalnum(ch) || ch == '_';
 }
 
 //-----------------------------------------------------------------------------

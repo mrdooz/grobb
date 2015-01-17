@@ -12,6 +12,7 @@ struct InputBuffer
 {
   InputBuffer();
   InputBuffer(const char* buf, size_t len);
+  InputBuffer(const vector<char>& buf);
   bool Peek(char* res);
   void Rewind(size_t len);
   bool Get(char* res);

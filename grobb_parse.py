@@ -11,6 +11,9 @@ def underscore_to_sentence(str):
 	s = str.split('_')
 	return ''.join(map(lambda x: x.title(), s))
 
+def first_upper(str):
+	return str[0].upper() + str[1:]
+
 def render_to_file(file, template_name, args):
 	template = ENV.get_template(template_name)
 	res = template.render(args)
@@ -150,7 +153,7 @@ class Member():
 		self.print_type = type
 		# if the type isn't built in, use title case
 		if not type in builtin_types:
-			self.print_type = type.title()
+			self.print_type = underscore_to_sentence(type)
 
 		self.inner_type = self.print_type
 		if is_array:
@@ -208,7 +211,7 @@ def process_file(args, first_file, filename):
 					'is_array': member.is_array,
 					'print_type': member.print_type,
 					'inner_type': member.inner_type,
-					'parser': 'Parse' + member.inner_type.title(),
+					'parser': 'Parse' + first_upper(member.inner_type),
 					'writer': 'Serialize'
 				})
 			params.append({ 
