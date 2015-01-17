@@ -42,7 +42,7 @@ void Serialize(OutputBuffer& buf, int indent, const char* member, const mat2& va
 template <typename T>
 void Serialize(OutputBuffer& buf, int indent, const char* member, const vector<T>& value)
 {
-  size_t len = strlen(member);
+  int len = (int)strlen(member);
   buf.EnsureCapacity(len + indent + 16 + 8 * value.size());
   buf._ofs += sprintf(buf.Cur(), "%*s: [", len + indent, member);
   for (size_t i = 0, e = value.size(); i < e; ++i)

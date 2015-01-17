@@ -91,7 +91,7 @@ void Serialize(OutputBuffer& buf, const {{ struct.name }}& msg)
 
 void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ struct.name }}& msg)
 {
-  size_t len = strlen(member);
+  int len = (int)strlen(member);
   buf.EnsureCapacity(len + indent + 16);
   buf.Advance(sprintf(buf.Cur(), "%*s: {\n", len + indent, member));
 

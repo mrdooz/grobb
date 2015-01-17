@@ -270,6 +270,23 @@ def process_file(args, first_file, filename):
 			'namespace': args.namespace
 		})
 
+		if args.compare:
+			compare_hpp_base = module_base + '.compare.hpp'
+			compare_cpp_base = module_base + '.compare.cpp'
+			compare_hpp_file = os.path.join(out_dir, compare_hpp_base)
+			compare_cpp_file = os.path.join(out_dir, compare_cpp_base)
+
+			params = {
+				'structs': params, 
+				'type_deps': type_deps,
+				'types_file': types_file,
+				'types_hpp': types_hpp_base,
+				'compare_hpp': compare_hpp_base,
+				'namespace': args.namespace
+			}
+			render_to_file(compare_hpp_file, 'compare_hpp.j2', params)
+			render_to_file(compare_cpp_file, 'compare_cpp.j2', params)
+
 		if args.imgui:
 			imgui_hpp_base = module_base + '.imgui.hpp'
 			imgui_cpp_base = module_base + '.imgui.cpp'
@@ -313,6 +330,7 @@ parser.add_argument("--out_dir", help='Output directory', action='store', defaul
 parser.add_argument("--basic_types", help='Only generate code for basic types (no vector/matrix)', action='store_true')
 parser.add_argument('--types_file', action='store')
 parser.add_argument('--imgui', action='store_true')
+parser.add_argument('--compare', action='store_true')
 parser.add_argument("input")
 args = parser.parse_args()
 

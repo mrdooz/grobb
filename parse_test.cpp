@@ -7,6 +7,7 @@
 #include "gen/output_buffer.hpp"
 #include "gen/demo_base.types.hpp"
 #include "gen/demo_base.parse.hpp"
+#include "gen/demo_base.compare.hpp"
 #include "parse_types.hpp"
 
 using namespace test;
@@ -54,14 +55,15 @@ int main(int argc, const char** argv)
     parse2Ok = ParseMsg1(buf2, &m2);
     if (parse2Ok)
     {
-      cmpOk = m.aa1v == m2.aa1v;
+      cmpOk = m == m2;
     }
   }
 
   printf("parse: %s, parse2: %s, cmp: %s\n", parseOk ? "Y" : "N", parse2Ok ? "Y" : "N", cmpOk ? "Y" : "N");
   {
     OutputBuffer b;
-    Msg3 mx;
+    Msg3 mx, mx2;
+    bool tmp = mx == mx2;
     Serialize(b, mx);
     printf("%s\n", string(b._buf.data(), b._ofs).c_str());
 

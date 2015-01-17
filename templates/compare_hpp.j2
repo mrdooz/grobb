@@ -1,0 +1,33 @@
+#pragma once
+#include "{{ types_hpp }}"
+
+{% if namespace %}
+namespace {{ namespace }} {
+{% endif %}
+
+{% for struct in structs %}
+bool operator==(const {{ struct.name }}& lhs, const {{ struct.name }}& rhs);
+{% endfor %}
+
+{% for struct in structs %}
+struct {{ struct.name }}Compare
+{
+  enum {
+    {% for member in struct.members %}
+    {% if not loop.last %}
+    {{ member.name }}_set = 1 << {{ loop.index - 1}},
+    {% else %}
+    {{ member.name }}_set = 1 << {{ loop.index - 1}}
+    {% endif %}
+    {% endfor %}
+  };
+
+  {{ struct.name }}Compare(const {{ struct.name }}& lhs, const {{ struct.name }}& rhs);
+
+  uint32_t flags;
+};
+{% endfor %}
+
+{% if namespace %}
+}
+{% endif %}

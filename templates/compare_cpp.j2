@@ -1,0 +1,38 @@
+#include "{{ compare_hpp }}"
+
+{% if namespace %}
+namespace {{ namespace }} {
+{% endif %}
+
+{% for struct in structs %}
+bool operator==(const {{ struct.name }}& lhs, const {{ struct.name }}& rhs)
+{
+  return
+  {% for member in struct.members %}
+  {% if not loop.last %}
+    lhs.{{ member.name }} == rhs.{{ member.name }} &&
+  {% else %}
+    lhs.{{ member.name }} == rhs.{{ member.name }};
+  {% endif %}
+  {% endfor %}
+}
+{% endfor %}
+
+{% for struct in structs %}
+{{ struct.name }}Compare::{{ struct.name }}Compare(const {{ struct.name }}& lhs, const {{ struct.name }}& rhs)
+{
+  flags = 
+    {% for member in struct.members %}
+    {% if not loop.last %}
+    (!(lhs.{{ member.name }} == rhs.{{ member.name }}) << {{ loop.index - 1}}) + 
+    {% else %}
+    (!(lhs.{{ member.name }} == rhs.{{ member.name }}) << {{ loop.index - 1}});
+    {% endif %}
+    {% endfor %}
+}
+{% endfor %}
+
+
+{% if namespace %}
+}
+{% endif %}
