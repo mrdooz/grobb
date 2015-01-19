@@ -124,6 +124,15 @@ bool ParseVec(InputBuffer& buf, float* res)
 
 {% if not basic_types %}
 //-----------------------------------------------------------------------------
+bool ParseColor(InputBuffer& buf, color* res)
+{
+  float tmp[4];
+  CHECKED_OP(ParseVec<4>(buf, tmp));
+  *res = color(tmp[0], tmp[1], tmp[2], tmp[3]);
+  return true;
+}
+
+//-----------------------------------------------------------------------------
 bool ParseVec2(InputBuffer& buf, vec2* res)
 {
   float tmp[2];
@@ -133,6 +142,25 @@ bool ParseVec2(InputBuffer& buf, vec2* res)
 }
 
 //-----------------------------------------------------------------------------
+bool ParseVec3(InputBuffer& buf, vec3* res)
+{
+  float tmp[3];
+  CHECKED_OP(ParseVec<3>(buf, tmp));
+  *res = vec3(tmp[0], tmp[1], tmp[2]);
+  return true;
+}
+
+//-----------------------------------------------------------------------------
+bool ParseVec4(InputBuffer& buf, vec4* res)
+{
+  float tmp[4];
+  CHECKED_OP(ParseVec<4>(buf, tmp));
+  *res = vec4(tmp[0], tmp[1], tmp[2], tmp[3]);
+  return true;
+}
+
+//-----------------------------------------------------------------------------
+#if 0
 bool ParseMat2(InputBuffer& buf, mat2* res)
 {
   // { {a, b}, {c, d} }
@@ -155,6 +183,7 @@ bool ParseMat2(InputBuffer& buf, mat2* res)
   *res = mat2(row0[0], row0[1], row1[0], row1[1]);
   return true;
 }
+#endif
 {% endif %}
 //-----------------------------------------------------------------------------
 bool ParseString(InputBuffer& buf, string* res)
@@ -210,6 +239,13 @@ void Serialize(OutputBuffer& buf, const string& value)
 
 {% if not basic_types %}
 //-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buf, const color& value)
+{
+  buf.EnsureCapacity(4 * 32); 
+  buf.Advance(sprintf(buf.Cur(), "{ %f, %f, %f, %f }", value.x, value.y, value.z, value.w));
+}
+
+//-----------------------------------------------------------------------------
 void Serialize(OutputBuffer& buf, const vec2& value)
 {
   buf.EnsureCapacity(2 * 32); 
@@ -217,11 +253,27 @@ void Serialize(OutputBuffer& buf, const vec2& value)
 }
 
 //-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buf, const vec3& value)
+{
+  buf.EnsureCapacity(3 * 32); 
+  buf.Advance(sprintf(buf.Cur(), "{ %f, %f, %f }", value.x, value.y, value.z));
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buf, const vec4& value)
+{
+  buf.EnsureCapacity(4 * 32); 
+  buf.Advance(sprintf(buf.Cur(), "{ %f, %f, %f, %f }", value.x, value.y, value.z, value.w));
+}
+
+#if 0
+//-----------------------------------------------------------------------------
 void Serialize(OutputBuffer& buf, const mat2& value)
 {
   buf.EnsureCapacity(4 * 32);
   buf.Advance(sprintf(buf.Cur(), "{ %f, %f }, { %f, %f} }", value.m00, value.m01, value.m10, value.m11));
 }
+#endif
 {% endif %}
 //-----------------------------------------------------------------------------
 void Serialize(OutputBuffer& buf, int indent, const char* member, bool value)
@@ -257,6 +309,14 @@ void Serialize(OutputBuffer& buf, int indent, const char* member, const string& 
 
 {% if not basic_types %}
 //-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buf, int indent, const char* member, const color& value)
+{
+  int len = (int)strlen(member);
+  buf.EnsureCapacity(len + indent + 4 * 32); 
+  buf.Advance(sprintf(buf.Cur(), "%*s: { %f, %f, %f, %f };\n", len + indent, member, value.x, value.y, value.z, value.w));
+}
+
+//-----------------------------------------------------------------------------
 void Serialize(OutputBuffer& buf, int indent, const char* member, const vec2& value)
 {
   int len = (int)strlen(member);
@@ -265,12 +325,29 @@ void Serialize(OutputBuffer& buf, int indent, const char* member, const vec2& va
 }
 
 //-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buf, int indent, const char* member, const vec3& value)
+{
+  int len = (int)strlen(member);
+  buf.EnsureCapacity(len + indent + 3 * 32); 
+  buf.Advance(sprintf(buf.Cur(), "%*s: { %f, %f, %f };\n", len + indent, member, value.x, value.y, value.z));
+}
+
+//-----------------------------------------------------------------------------
+void Serialize(OutputBuffer& buf, int indent, const char* member, const vec4& value)
+{
+  int len = (int)strlen(member);
+  buf.EnsureCapacity(len + indent + 4 * 32); 
+  buf.Advance(sprintf(buf.Cur(), "%*s: { %f, %f, %f, %f };\n", len + indent, member, value.x, value.y, value.z, value.w));
+}
+#if 0
+//-----------------------------------------------------------------------------
 void Serialize(OutputBuffer& buf, int indent, const char* member, const mat2& value)
 {
   int len = (int)strlen(member);
   buf.EnsureCapacity(len + indent + 4 * 32);
   buf.Advance(sprintf(buf.Cur(), "%*s: { { %f, %f }, { %f, %f } };\n", len + indent, member, value.m00, value.m01, value.m10, value.m11));  
 }
+#endif
 {% endif %}
 
 

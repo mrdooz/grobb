@@ -5,8 +5,9 @@ attribute range {
 	int max;	
 };
 
-@range(min: 10, max: 20)
 struct effect1 : effect_base {
 		int param1;
 		float param2;
+		color param3;
+		vec4 param4;
 };

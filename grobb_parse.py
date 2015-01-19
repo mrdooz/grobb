@@ -25,7 +25,7 @@ def safe_mkdir(path):
 	except OSError:
 		pass
 
-builtin_types = set(['int', 'float', 'bool', 'string', 'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'])
+builtin_types = set(['int', 'float', 'bool', 'string', 'color', 'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'])
 
 # to ensure that the script can be run from any dir, we need to extract
 # the script dir to use as a base
@@ -57,6 +57,8 @@ def parse(input):
 	bool_lit = Keyword('bool')
 	string_lit = Keyword('string')
 
+	color_lit = Keyword('color')
+
 	vec2_lit = Keyword('vec2')
 	vec3_lit = Keyword('vec3')
 	vec4_lit = Keyword('vec4')
@@ -84,7 +86,7 @@ def parse(input):
 
 	# attributes can only have a subset of types
 	attr_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit
-	builtin_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit ^ vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit
+	builtin_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit ^ color_lit ^ vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit
 	type_lit = (custom_lit ^ builtin_type_list)
 	full_type_lit = Group(type_lit + Optional(array_lit))
 
@@ -109,8 +111,7 @@ def parse(input):
 	grobb_file.parseString(input)
 
 def create_attribute(s, l, t):
-	print t
-	exit(1)
+	pass
 
 def create_struct(s, l, t):
 	# the type can have an optional parent
