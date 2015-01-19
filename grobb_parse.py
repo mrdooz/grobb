@@ -48,6 +48,7 @@ def parse(input):
 	# keywords
 	struct_lit = Keyword('struct')
 	import_lit = Keyword('import')
+	attr_lit = Keyword('attribute')
 	type_alias_lit = Keyword('alias')
 
 	# types
@@ -81,27 +82,35 @@ def parse(input):
 	hashmark = '#'
 	comment = (hashmark + restOfLine).suppress()
 
-
+	# attributes can only have a subset of types
+	attr_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit
 	builtin_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit ^ vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit
 	type_lit = (custom_lit ^ builtin_type_list)
 	full_type_lit = Group(type_lit + Optional(array_lit))
 
 	parent_group = Suppress(colon) + identifier
 
-	member = Group(full_type_lit + identifier + Suppress(semi))
+	struct_member = Group(full_type_lit + identifier + Suppress(semi))
+	attr_member = Group(attr_type_list + identifier + Suppress(semi))
 
 	alias_group = (Suppress(type_alias_lit) + builtin_type_list + Suppress(equals) + identifier + Suppress(semi)).setParseAction(create_type_alias)
 
 	struct_group = (Suppress(struct_lit) + Group(identifier + Optional(parent_group)) + Suppress(l_brace) 
-					+ Group(OneOrMore(member)) + Suppress(r_brace + semi)).setParseAction(create_struct)
+					+ Group(OneOrMore(struct_member)) + Suppress(r_brace + semi)).setParseAction(create_struct)
+
+	attr_group = (Suppress(attr_lit) + identifier + Suppress(l_brace) 
+					+ Group(OneOrMore(attr_member)) + Suppress(r_brace + semi)).setParseAction(create_attribute)
 
 	import_group = (Suppress(import_lit) + filename_lit).setParseAction(process_import)
 
-	grobb_file = ZeroOrMore(alias_group | struct_group | import_group)
+	grobb_file = ZeroOrMore(attr_group | alias_group | struct_group | import_group)
 	grobb_file.ignore(comment)
 
 	grobb_file.parseString(input)
 
+def create_attribute(s, l, t):
+	print t
+	exit(1)
 
 def create_struct(s, l, t):
 	# the type can have an optional parent

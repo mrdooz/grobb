@@ -1,5 +1,11 @@
 import 'demo_base.grobb'
 
+attribute range {
+	int min;
+	int max;	
+};
+
+@range(min: 10, max: 20)
 struct effect1 : effect_base {
 		int param1;
 		float param2;
