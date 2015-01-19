@@ -78,6 +78,12 @@ bool ParseFloat(InputBuffer& buf, float* res)
       tmp += frac / powf(10.f, (float)len);
     }
   }
+  else
+  {
+    // we've gobbled up a character that doesn't belong to the float, so spit
+    // it back out
+    buf.Rewind(1);
+  }
 
   *res = tmp;
   return true;
