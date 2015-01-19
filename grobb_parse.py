@@ -103,7 +103,7 @@ def parse(input):
 	attr_group = (Suppress(attr_lit) + identifier + Suppress(l_brace) 
 					+ Group(OneOrMore(attr_member)) + Suppress(r_brace + semi)).setParseAction(create_attribute)
 
-	import_group = (Suppress(import_lit) + filename_lit).setParseAction(process_import)
+	import_group = (Suppress(import_lit) + filename_lit + Suppress(semi)).setParseAction(process_import)
 
 	grobb_file = ZeroOrMore(attr_group | alias_group | struct_group | import_group)
 	grobb_file.ignore(comment)
