@@ -129,15 +129,18 @@ def create_struct(s, l, t):
 
 		for member in t[1]:
 			type = member[0]
+			# if the type is aliased, use the alias instead
+			base_type = type_alias.get(type[0], type[0])
 			name = member[1]
 			is_array = len(type) > 1
-			s.add_member(Member(type[0], is_array, name))
+			s.add_member(Member(base_type, is_array, name))
 
 def create_type_alias(s, l, t):
 	tt = t[0]
 	if tt in type_alias:
 		print 'Duplicate type alias found: %s' % tt
 		exit(1)
+	print 'Found alias %s -> %s' % (tt, t[1])
 	type_alias[tt] = t[1]
 
 def process_import(s, l, t):
@@ -217,7 +220,8 @@ def process_file(args, first_file, filename):
 			members = []
 			for member in s.members:
 				members.append({
-					'name': member.name, 
+					'name': member.name,
+					'alias': type_alias,
 					'is_array': member.is_array,
 					'print_type': member.print_type,
 					'inner_type': member.inner_type,
@@ -240,9 +244,11 @@ def process_file(args, first_file, filename):
 		type_deps = []
 		parse_deps = []
 		for dep in dependencies[module]:
-			dep_head, _ = os.path.splitext(dep)
-			type_deps.append(dep_head + '.types.hpp')
-			parse_deps.append(dep_head + '.parse.hpp')
+			# only add the dependency if the module has any structs
+			if dep in struct_by_module:
+				dep_head, _ = os.path.splitext(dep)
+				type_deps.append(dep_head + '.types.hpp')
+				parse_deps.append(dep_head + '.parse.hpp')
 
 		# compute relative path from the output dir to the directory containing
 		# the parse types
@@ -254,6 +260,7 @@ def process_file(args, first_file, filename):
 
 		render_to_file(types_hpp_file, 'types_hpp.j2', {
 			'structs': params, 
+			'alias': type_alias,
 			'type_deps': type_deps,
 			'types_file': types_file,
 			'basic_types': args.basic_types,
@@ -262,6 +269,7 @@ def process_file(args, first_file, filename):
 
 		render_to_file(parse_hpp_file, 'parse_hpp.j2', {
 			'structs': params, 
+			'alias': type_alias,
 			'parse_deps': parse_deps,
 			'types_file': types_file,
 			'basic_types': args.basic_types,
@@ -270,6 +278,7 @@ def process_file(args, first_file, filename):
 
 		render_to_file(parse_cpp_file, 'parse_cpp.j2', {
 			'structs': params, 
+			'alias': type_alias,
 			'parse_deps': parse_deps, 
 			'type_deps': type_deps, 
 			'parse_hpp': parse_hpp_base,
@@ -288,6 +297,7 @@ def process_file(args, first_file, filename):
 
 			params = {
 				'structs': params, 
+				'alias': type_alias,
 				'type_deps': type_deps,
 				'types_file': types_file,
 				'types_hpp': types_hpp_base,
@@ -305,6 +315,7 @@ def process_file(args, first_file, filename):
 
 			params = {
 				'structs': params, 
+				'alias': type_alias,
 				'type_deps': type_deps,
 				'types_file': types_file,
 				'types_hpp': types_hpp_base,
@@ -326,6 +337,7 @@ def process_file(args, first_file, filename):
 			for t, f in files.iteritems():
 				render_to_file(os.path.join(out_dir, f), t, {
 					'namespace': args.namespace,
+					'alias': type_alias,
 					'basic_types': args.basic_types,
 					'types_file': types_file,
 				})

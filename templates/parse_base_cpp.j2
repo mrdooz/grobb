@@ -10,6 +10,11 @@
 namespace {{ namespace }} {
 {% endif %}
 
+typedef {{ alias.get('color', 'color') }} color;
+typedef {{ alias.get('vec2', 'vec2') }} vec2;
+typedef {{ alias.get('vec3', 'vec3') }} vec3;
+typedef {{ alias.get('vec4', 'vec4') }} vec4;
+
 //-----------------------------------------------------------------------------
 bool ParseBool(InputBuffer& buf, bool* res)
 {
