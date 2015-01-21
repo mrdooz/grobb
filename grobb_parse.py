@@ -179,9 +179,10 @@ def create_struct(s, l, toks):
 		# type = member[1]
 		# if the type is aliased, use the alias instead
 		base_type = type_alias.get(type[0], type[0])
+		org_type = type[0]
 		# name = member[2]
 		is_array = len(type) > 1
-		s.add_member(Member(base_type, attributes, is_array, name))
+		s.add_member(Member(base_type, org_type, attributes, is_array, name))
 
 def create_type_alias(s, l, toks):
 	tt = toks[0]
@@ -207,25 +208,26 @@ def process_import(s, l, t):
 		module_stack.pop()
 
 class Member():
-	def __init__(self, type, attributes, is_array, name):
+	def __init__(self, type, org_type,  attributes, is_array, name):
 		self.type = type
+		self.org_type = org_type
 		self.attributes = attributes
 		self.is_array = is_array
 		self.name = name
 		self.print_type = type
 		# if the type isn't built in, use title case
-		if not type in builtin_types:
-			self.print_type = underscore_to_sentence(type)
+		if not org_type in builtin_types:
+			self.print_type = underscore_to_sentence(org_type)
 
 		self.inner_type = self.print_type
 		if is_array:
 			self.print_type = 'vector<%s>' % self.inner_type
 
 	def __repr__(self):
-		return "%s: %s%s" % (self.name, self.type, '[]' if self.array else '')
+		return "%s: %s%s" % (self.name, self.org_type, '[]' if self.array else '')
 
 	def is_builtin(self):
-		return self.type in builtin_types
+		return self.org_type in builtin_types
 
 class Struct():
 	def __init__(self, name):
@@ -262,6 +264,7 @@ def process_file(args, first_file, filename):
 
 	# output the generated code per module
 	for module, ss in struct_by_module.iteritems():
+
 		# grab the structs that are in the current module
 		to_process = [x.name for x in order if x.name in ss]
 		params = []
