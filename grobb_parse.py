@@ -64,8 +64,8 @@ def parse(input):
 	equals = Literal('=');
 	colon = Literal(':')
 	quote = Literal("'")
-	hashmark = '#'
-	at = '@'
+	hashmark = Literal('#')
+	at = Literal('@')
 
 	# keywords
 	struct_lit = Keyword('struct')
@@ -272,6 +272,7 @@ def process_file(args, first_file, filename):
 				members.append({
 					'name': member.name,
 					'alias': type_alias,
+					'attributes': member.attributes,
 					'is_array': member.is_array,
 					'print_type': member.print_type,
 					'inner_type': member.inner_type,
@@ -279,7 +280,8 @@ def process_file(args, first_file, filename):
 					'writer': 'Serialize'
 				})
 			params.append({ 
-				'name': underscore_to_sentence(name), 
+				'name': underscore_to_sentence(name),
+				'attributes': s.attributes,
 				'members': members
 			})
 
@@ -287,9 +289,17 @@ def process_file(args, first_file, filename):
 		types_hpp_base = module_base + '.types.hpp'
 		parse_hpp_base = module_base + '.parse.hpp'
 		parse_cpp_base = module_base + '.parse.cpp'
+		compare_hpp_base = module_base + '.compare.hpp'
+		compare_cpp_base = module_base + '.compare.cpp'
+		imgui_hpp_base = module_base + '.imgui.hpp'
+		imgui_cpp_base = module_base + '.imgui.cpp'
 		types_hpp_file = os.path.join(out_dir, types_hpp_base)
 		parse_hpp_file = os.path.join(out_dir, parse_hpp_base)
 		parse_cpp_file = os.path.join(out_dir, parse_cpp_base)
+		compare_hpp_file = os.path.join(out_dir, compare_hpp_base)
+		compare_cpp_file = os.path.join(out_dir, compare_cpp_base)
+		imgui_hpp_file = os.path.join(out_dir, imgui_hpp_base)
+		imgui_cpp_file = os.path.join(out_dir, imgui_cpp_base)
 
 		type_deps = []
 		parse_deps = []
@@ -308,71 +318,31 @@ def process_file(args, first_file, filename):
 			if not head: head = './'
 			types_file = os.path.join(os.path.relpath(head, out_dir), tail)
 
-		render_to_file(types_hpp_file, 'types_hpp.j2', {
+		template_args = {
 			'structs': params, 
 			'alias': type_alias,
 			'type_deps': type_deps,
-			'types_file': types_file,
-			'basic_types': args.basic_types,
-			'namespace': args.namespace
-		})
-
-		render_to_file(parse_hpp_file, 'parse_hpp.j2', {
-			'structs': params, 
-			'alias': type_alias,
 			'parse_deps': parse_deps,
-			'types_file': types_file,
-			'basic_types': args.basic_types,
-			'namespace': args.namespace
-		})
-
-		render_to_file(parse_cpp_file, 'parse_cpp.j2', {
-			'structs': params, 
-			'alias': type_alias,
-			'parse_deps': parse_deps, 
-			'type_deps': type_deps, 
 			'parse_hpp': parse_hpp_base,
 			'types_hpp': types_hpp_base,
+			'compare_hpp': compare_hpp_base,
 			'types_file': types_file,
-			'lib_dir': args.lib_dir if args.lib_dir else '',
 			'basic_types': args.basic_types,
+			'lib_dir': args.lib_dir if args.lib_dir else '',
 			'namespace': args.namespace
-		})
+		}
+
+		render_to_file(types_hpp_file, 'types_hpp.j2', template_args)
+		render_to_file(parse_hpp_file, 'parse_hpp.j2', template_args)
+		render_to_file(parse_cpp_file, 'parse_cpp.j2', template_args)
 
 		if args.compare:
-			compare_hpp_base = module_base + '.compare.hpp'
-			compare_cpp_base = module_base + '.compare.cpp'
-			compare_hpp_file = os.path.join(out_dir, compare_hpp_base)
-			compare_cpp_file = os.path.join(out_dir, compare_cpp_base)
-
-			params = {
-				'structs': params, 
-				'alias': type_alias,
-				'type_deps': type_deps,
-				'types_file': types_file,
-				'types_hpp': types_hpp_base,
-				'compare_hpp': compare_hpp_base,
-				'namespace': args.namespace
-			}
-			render_to_file(compare_hpp_file, 'compare_hpp.j2', params)
-			render_to_file(compare_cpp_file, 'compare_cpp.j2', params)
+			render_to_file(compare_hpp_file, 'compare_hpp.j2', template_args)
+			render_to_file(compare_cpp_file, 'compare_cpp.j2', template_args)
 
 		if args.imgui:
-			imgui_hpp_base = module_base + '.imgui.hpp'
-			imgui_cpp_base = module_base + '.imgui.cpp'
-			imgui_hpp_file = os.path.join(out_dir, imgui_hpp_base)
-			imgui_cpp_file = os.path.join(out_dir, imgui_cpp_base)
-
-			params = {
-				'structs': params, 
-				'alias': type_alias,
-				'type_deps': type_deps,
-				'types_file': types_file,
-				'types_hpp': types_hpp_base,
-				'namespace': args.namespace
-			}
-			render_to_file(imgui_hpp_file, 'imgui_hpp.j2', params)
-			render_to_file(imgui_cpp_file, 'imgui_cpp.j2', params)
+			render_to_file(imgui_hpp_file, 'imgui_hpp.j2', template_args)
+			render_to_file(imgui_cpp_file, 'imgui_cpp.j2', template_args)
 
 		if args.generate_lib and first_file:
 			files = { 
@@ -385,13 +355,7 @@ def process_file(args, first_file, filename):
 			}
 
 			for t, f in files.iteritems():
-				render_to_file(os.path.join(out_dir, f), t, {
-					'namespace': args.namespace,
-					'alias': type_alias,
-					'basic_types': args.basic_types,
-					'types_file': types_file,
-				})
-
+				render_to_file(os.path.join(out_dir, f), t, template_args)
 
 parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group()
