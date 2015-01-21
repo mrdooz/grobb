@@ -162,7 +162,6 @@ def create_struct(s, l, toks):
 
 	# add the attributes
 	s.attributes = collect_attributes(toks[0])
-	# import pdb; pdb.set_trace()
 
 	# add the parents members first
 	if parent:
@@ -176,11 +175,9 @@ def create_struct(s, l, toks):
 		# [1] = type (tuple)
 		# [2] = name
 		attributes = collect_attributes(attrs)
-		# type = member[1]
 		# if the type is aliased, use the alias instead
 		base_type = type_alias.get(type[0], type[0])
 		org_type = type[0]
-		# name = member[2]
 		is_array = len(type) > 1
 		s.add_member(Member(base_type, org_type, attributes, is_array, name))
 
