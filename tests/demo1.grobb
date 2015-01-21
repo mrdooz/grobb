@@ -1,11 +1,10 @@
-import 'demo_base.grobb'
+import 'demo_base.grobb';
 
-attribute range {
-	int min;
-	int max;	
-};
-
+@range(min: 10, max: 20)
+@range2(min2: 10, max2: 20)
 struct effect1 : effect_base {
+		@member_param(value1: 10, value2: apa)
+		@member_param2(value1: 10, value2: apa)
 		int param1;
 		float param2;
 		color param3;

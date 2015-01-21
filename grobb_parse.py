@@ -5,7 +5,16 @@ import argparse
 import collections
 import glob
 from pyparsing import *
+from itertools import *
 from jinja2 import Environment, PackageLoader, FileSystemLoader
+
+VERBOSE = 0
+
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
+    args = [iter(iterable)] * n
+    return izip_longest(fillvalue=fillvalue, *args)
 
 def underscore_to_sentence(str):
 	s = str.split('_')
@@ -45,10 +54,22 @@ type_alias = {}
 structs = {}
 
 def parse(input):
+
+	array_lit = Literal('[]')
+	l_brace = Literal('{')
+	r_brace = Literal('}')
+	l_paren = Literal('(')
+	r_paren = Literal(')')
+	semi = Literal(';')
+	equals = Literal('=');
+	colon = Literal(':')
+	quote = Literal("'")
+	hashmark = '#'
+	at = '@'
+
 	# keywords
 	struct_lit = Keyword('struct')
 	import_lit = Keyword('import')
-	attr_lit = Keyword('attribute')
 	type_alias_lit = Keyword('alias')
 
 	# types
@@ -70,19 +91,10 @@ def parse(input):
 	custom_lit = Word(alphas, alphanums + '_')
 	identifier = Word(alphas, alphanums + '_')
 
-	string_value = Suppress(Literal("'")) + identifier + Suppress(Literal("'"))
+	string_value = Suppress(quote) + identifier + Suppress(quote)
 
-	filename_lit = (Suppress(Literal("'")) + identifier + Optional('.' + identifier) + Suppress(Literal("'")))
+	filename_lit = (Suppress(quote) + identifier + Optional('.' + identifier) + Suppress(quote))
 	import_lit = Keyword('import')
-
-	array_lit = Literal('[]')
-	l_brace = Literal('{')
-	r_brace = Literal('}')
-	semi = Literal(';')
-	equals = Literal('=');
-	colon = Literal(':')
-	hashmark = '#'
-	comment = (hashmark + restOfLine).suppress()
 
 	# attributes can only have a subset of types
 	attr_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit
@@ -90,58 +102,94 @@ def parse(input):
 	type_lit = (custom_lit ^ builtin_type_list)
 	full_type_lit = Group(type_lit + Optional(array_lit))
 
+	attr_arg = Group(identifier + Suppress(colon) + Word(alphanums))
+	attr_args = Suppress(l_paren) + ZeroOrMore(attr_arg + Suppress(Optional(','))) + Suppress(r_paren)
+
+	comment = (hashmark + restOfLine).suppress()
+	attribute_lit = Group(Suppress(at) + identifier + attr_args).setParseAction(apply_attribute)
+
 	parent_group = Suppress(colon) + identifier
 
-	struct_member = Group(full_type_lit + identifier + Suppress(semi))
-	attr_member = Group(attr_type_list + identifier + Suppress(semi))
+	struct_member = Group(ZeroOrMore(attribute_lit)) + full_type_lit + identifier + Suppress(semi)
 
-	alias_group = (Suppress(type_alias_lit) + builtin_type_list + Suppress(equals) + identifier + Suppress(semi)).setParseAction(create_type_alias)
+	alias_group = (Suppress(type_alias_lit) + builtin_type_list + Suppress(equals) 
+		+ identifier + Suppress(semi)).setParseAction(create_type_alias)
 
-	struct_group = (Suppress(struct_lit) + Group(identifier + Optional(parent_group)) + Suppress(l_brace) 
-					+ Group(OneOrMore(struct_member)) + Suppress(r_brace + semi)).setParseAction(create_struct)
-
-	attr_group = (Suppress(attr_lit) + identifier + Suppress(l_brace) 
-					+ Group(OneOrMore(attr_member)) + Suppress(r_brace + semi)).setParseAction(create_attribute)
+	struct_group = (Group(Optional(OneOrMore(attribute_lit))) + Suppress(struct_lit) 
+		+ Group(identifier + Optional(parent_group)) + Suppress(l_brace) 
+		+ Group(ZeroOrMore(struct_member)) + Suppress(r_brace + semi)).setParseAction(create_struct)
 
 	import_group = (Suppress(import_lit) + filename_lit + Suppress(semi)).setParseAction(process_import)
 
-	grobb_file = ZeroOrMore(attr_group | alias_group | struct_group | import_group)
+	grobb_file = ZeroOrMore(alias_group | struct_group | import_group)
 	grobb_file.ignore(comment)
 
 	grobb_file.parseString(input)
 
-def create_attribute(s, l, t):
+def apply_attribute(str, loc, toks):
+	if VERBOSE > 2:
+		print 'found attribute: ', toks
 	pass
 
-def create_struct(s, l, t):
+def collect_attributes(input):
+	if len(input) == 0:
+		return None
+
+	res = {}
+	for attr in input:
+		# first item is the attribute name, then the key/value pairs
+		name = attr[0]
+		attrs = {}
+		for x in attr[1:]:
+			attrs[x[0]] = x[1]
+		res[name] = attrs
+	return res
+
+def create_struct(s, l, toks):
+	# toks[0] = any attributes
+	# toks[1] = struct class (and optional parent)
+	# toks[2] = struct members
+
 	# the type can have an optional parent
-	name = t[0][0]
-	parent = parent = t[0][1] if len(t[0]) > 1 else None
+	name = toks[1][0]
+	parent = None
+	if len(toks[1]) > 1: parent = toks[1][1]
 	s = Struct(name)
 	structs[name] = s
+	members = toks[2]
+	if VERBOSE > 0: 
+		print 'Adding struct: %s' % (name)
+
+	# add the attributes
+	s.attributes = collect_attributes(toks[0])
+	# import pdb; pdb.set_trace()
+
+	# add the parents members first
+	if parent:
+		p = structs[parent]
+		for member in p.members:
+			s.add_member(member)
+
 	# add the members
-	if len(t) > 1:
-		# add the parents members first
-		if parent:
-			p = structs[parent]
-			for member in p.members:
-				s.add_member(member)
+	for attrs, type, name in grouper(members, 3):
+		# [0] = attributes
+		# [1] = type (tuple)
+		# [2] = name
+		attributes = collect_attributes(attrs)
+		# type = member[1]
+		# if the type is aliased, use the alias instead
+		base_type = type_alias.get(type[0], type[0])
+		# name = member[2]
+		is_array = len(type) > 1
+		s.add_member(Member(base_type, attributes, is_array, name))
 
-		for member in t[1]:
-			type = member[0]
-			# if the type is aliased, use the alias instead
-			base_type = type_alias.get(type[0], type[0])
-			name = member[1]
-			is_array = len(type) > 1
-			s.add_member(Member(base_type, is_array, name))
-
-def create_type_alias(s, l, t):
-	tt = t[0]
+def create_type_alias(s, l, toks):
+	tt = toks[0]
 	if tt in type_alias:
 		print 'Duplicate type alias found: %s' % tt
 		exit(1)
-	print 'Found alias %s -> %s' % (tt, t[1])
-	type_alias[tt] = t[1]
+	print 'Found alias %s -> %s' % (tt, toks[1])
+	type_alias[tt] = toks[1]
 
 def process_import(s, l, t):
 	import_name = ''.join(t)
@@ -159,8 +207,9 @@ def process_import(s, l, t):
 		module_stack.pop()
 
 class Member():
-	def __init__(self, type, is_array, name):
+	def __init__(self, type, attributes, is_array, name):
 		self.type = type
+		self.attributes = attributes
 		self.is_array = is_array
 		self.name = name
 		self.print_type = type
@@ -182,6 +231,7 @@ class Struct():
 	def __init__(self, name):
 		self.name = name
 		self.members = []
+		self.attributes = {}
 		GRAPH.add_node(name)
 		self.module_path, self.module = module_stack[-1]
 		struct_by_module[self.module].add(name)
@@ -353,13 +403,16 @@ parser.add_argument("--basic_types", help='Only generate code for basic types (n
 parser.add_argument('--types_file', action='store')
 parser.add_argument('--imgui', action='store_true')
 parser.add_argument('--compare', action='store_true')
+parser.add_argument('--verbose', type=int, action='store', default=0)
 parser.add_argument("input")
 args = parser.parse_args()
 
 out_dir = args.out_dir
+VERBOSE = args.verbose
 safe_mkdir(out_dir)
 
 first_file = True
 for input in glob.glob(args.input):
 	process_file(args, first_file, input)
 	first_file = False
+
