@@ -24,6 +24,18 @@ struct vec3
   float x, y, z;
 };
 
+struct vec4
+{
+  vec4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
+  float x, y, z, w;
+};
+
+struct color
+{
+  color(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
+  float x, y, z, w;
+};
+
 struct mat2
 {
   mat2() {}
@@ -35,6 +47,21 @@ struct mat2
 inline bool operator==(const vec2& lhs, const vec2& rhs)
 {
 	return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
+inline bool operator==(const vec3& lhs, const vec3& rhs)
+{
+  return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+}
+
+inline bool operator==(const vec4& lhs, const vec4& rhs)
+{
+  return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z && lhs.w == rhs.w;
+}
+
+inline bool operator==(const color& lhs, const color& rhs)
+{
+  return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z && lhs.w == rhs.w;
 }
 
 inline bool operator==(const mat2& lhs, const mat2& rhs)

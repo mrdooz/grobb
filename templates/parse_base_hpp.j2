@@ -19,7 +19,7 @@ bool ParseColor(InputBuffer& buf, {{ alias.get('color', 'color') }}* res);
 bool ParseVec2(InputBuffer& buf, {{ alias.get('vec2', 'vec2') }}* res);
 bool ParseVec3(InputBuffer& buf, {{ alias.get('vec3', 'vec3') }}* res);
 bool ParseVec4(InputBuffer& buf, {{ alias.get('vec4', 'vec4') }}* res);
-//bool ParseMat2(InputBuffer& buf, mat2* res);
+bool ParseMat2(InputBuffer& buf, {{ alias.get('mat2', 'mat2') }}* res);
 {% endif %}
 bool ParseInt(InputBuffer& buf, int* res);
 bool ParseString(InputBuffer& buf, string* res);
@@ -34,7 +34,7 @@ void Serialize(OutputBuffer& buf, const {{ alias.get('color', 'color') }}& value
 void Serialize(OutputBuffer& buf, const {{ alias.get('vec2', 'vec2') }}& value);
 void Serialize(OutputBuffer& buf, const {{ alias.get('vec3', 'vec3') }}& value);
 void Serialize(OutputBuffer& buf, const {{ alias.get('vec4', 'vec4') }}& value);
-//void Serialize(OutputBuffer& buf, const mat2& value);
+void Serialize(OutputBuffer& buf, const {{ alias.get('mat2', 'mat2') }}& value);
 {% endif %}
 void Serialize(OutputBuffer& buf, int indent, const char* member, bool value);
 void Serialize(OutputBuffer& buf, int indent, const char* member, int value);
@@ -45,7 +45,7 @@ void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ alias
 void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ alias.get('vec2', 'vec2') }}& value);
 void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ alias.get('vec3', 'vec3') }}& value);
 void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ alias.get('vec4', 'vec4') }}& value);
-//void Serialize(OutputBuffer& buf, int indent, const char* member, const mat2& value);
+void Serialize(OutputBuffer& buf, int indent, const char* member, const {{ alias.get('mat2', 'mat2') }}& value);
 {% endif %}
 
 template <typename T>
