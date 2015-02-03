@@ -6,7 +6,7 @@ struct effect1 : effect_base {
 		@member_param(value1: 10, value2: apa)
 		@member_param2(value1: 10, value2: apa)
 		int param1;
-		float param2;
+		float param2 = 20;
 		color param3;
-		vec4 param4;
+		vec4 param4 = {1, 2, 3, 4};
 };

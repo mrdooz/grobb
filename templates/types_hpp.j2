@@ -15,7 +15,15 @@ namespace {{ namespace }} {
 struct {{ struct.name }}
 {
   {% for member in struct.members %}
+  {% if member.default_value %}
+  {% if member.basic_types %}
+  {{ member.print_type }} {{ member.name}} = {{ member.default_value }};
+  {% else %}
+  {{ member.print_type }} {{ member.name}} = {{ member.print_type }}({{ member.default_value }});
+  {% endif %}
+  {% else %}
   {{ member.print_type }} {{ member.name}};
+  {% endif %}
   {% endfor %}
 };
 

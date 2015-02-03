@@ -34,6 +34,7 @@ def safe_mkdir(path):
 	except OSError:
 		pass
 
+basic_types = set(['int', 'float', 'bool', 'string'])
 builtin_types = set(['int', 'float', 'bool', 'string', 'color', 'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'])
 
 # to ensure that the script can be run from any dir, we need to extract
@@ -110,7 +111,9 @@ def parse(input):
 
 	parent_group = Suppress(colon) + identifier
 
-	struct_member = Group(ZeroOrMore(attribute_lit)) + full_type_lit + identifier + Suppress(semi)
+	default_value = Word(alphanums) ^ (Suppress('{') + OneOrMore(Word(alphanums) + Suppress(Optional(','))) + Suppress('}'))
+
+	struct_member = Group(ZeroOrMore(attribute_lit)) + full_type_lit + identifier + Group(Optional(Suppress(equals) + default_value)) + Suppress(semi)
 
 	alias_group = (Suppress(type_alias_lit) + builtin_type_list + Suppress(equals) 
 		+ identifier + Suppress(semi)).setParseAction(create_type_alias)
@@ -170,16 +173,17 @@ def create_struct(s, l, toks):
 			s.add_member(member)
 
 	# add the members
-	for attrs, type, name in grouper(members, 3):
+	for attrs, type, name, default_value in grouper(members, 4):
 		# [0] = attributes
 		# [1] = type (tuple)
 		# [2] = name
+		# [3] = default value
 		attributes = collect_attributes(attrs)
 		# if the type is aliased, use the alias instead
 		base_type = type_alias.get(type[0], type[0])
 		org_type = type[0]
 		is_array = len(type) > 1
-		s.add_member(Member(base_type, org_type, attributes, is_array, name))
+		s.add_member(Member(base_type, org_type, attributes, is_array, name, default_value))
 
 def create_type_alias(s, l, toks):
 	tt = toks[0]
@@ -205,13 +209,14 @@ def process_import(s, l, t):
 		module_stack.pop()
 
 class Member():
-	def __init__(self, type, org_type,  attributes, is_array, name):
+	def __init__(self, type, org_type,  attributes, is_array, name, default_value):
 		self.type = type
 		self.org_type = org_type
 		self.attributes = attributes
 		self.is_array = is_array
 		self.name = name
 		self.print_type = type
+		self.default_value = default_value
 		# if the type isn't built in, use title case
 		if not org_type in builtin_types:
 			self.print_type = underscore_to_sentence(org_type)
@@ -277,6 +282,8 @@ def process_file(args, first_file, filename):
 					'print_type': member.print_type,
 					'inner_type': member.inner_type,
 					'parser': 'Parse' + first_upper(member.inner_type),
+					'default_value': ','.join(member.default_value) if member.default_value else None,
+					'basic_types': member.org_type in basic_types,
 					'writer': 'Serialize'
 				})
 			params.append({ 
