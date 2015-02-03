@@ -67,6 +67,9 @@ def parse(input):
 	quote = Literal("'")
 	hashmark = Literal('#')
 	at = Literal('@')
+	point = Literal('.')
+	e = CaselessLiteral('E')
+	plus_or_minus = Literal('+') | Literal('-')
 
 	# keywords
 	struct_lit = Keyword('struct')
@@ -97,13 +100,26 @@ def parse(input):
 	filename_lit = (Suppress(quote) + identifier + Optional('.' + identifier) + Suppress(quote))
 	import_lit = Keyword('import')
 
+	number_value = Word(nums)
+	integer_value = Combine(Optional(plus_or_minus) + number_value)
+	bool_value = CaselessLiteral('true') | CaselessLiteral('false')
+	float_value = Combine(integer_value +
+                       Optional( point + Optional(number_value) ) +
+                       Optional( e + integer_value )
+                     )
+	int_or_float = integer_value | float_value
+
+	vec2_value = (Suppress('{') + int_or_float + Suppress(',') + int_or_float + Suppress('}'))
+	vec3_value = (Suppress('{') + int_or_float + Suppress(',') + int_or_float + Suppress(',') + int_or_float + Suppress('}'))
+	vec4_value = (Suppress('{') + int_or_float + Suppress(',') + int_or_float + Suppress(',') + int_or_float + Suppress(',') + int_or_float + Suppress('}'))
+
 	# attributes can only have a subset of types
 	attr_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit
 	builtin_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit ^ color_lit ^ vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit
 	type_lit = (custom_lit ^ builtin_type_list)
 	full_type_lit = Group(type_lit + Optional(array_lit))
 
-	attr_arg = Group(identifier + Suppress(colon) + Word(alphanums))
+	attr_arg = Group(identifier + Suppress(colon) + (int_or_float | bool_value))
 	attr_args = Suppress(l_paren) + ZeroOrMore(attr_arg + Suppress(Optional(','))) + Suppress(r_paren)
 
 	comment = (hashmark + restOfLine).suppress()
@@ -111,7 +127,7 @@ def parse(input):
 
 	parent_group = Suppress(colon) + identifier
 
-	default_value = Word(alphanums) ^ (Suppress('{') + OneOrMore(Word(alphanums) + Suppress(Optional(','))) + Suppress('}'))
+	default_value = int_or_float | vec2_value | vec3_value | vec4_value
 
 	struct_member = Group(ZeroOrMore(attribute_lit)) + full_type_lit + identifier + Group(Optional(Suppress(equals) + default_value)) + Suppress(semi)
 
