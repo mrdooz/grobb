@@ -120,7 +120,7 @@ def parse(input):
 	full_type_lit = Group(type_lit + Optional(array_lit))
 
 	attr_arg = Group(identifier + Suppress(colon) + (int_or_float | bool_value))
-	attr_args = Suppress(l_paren) + ZeroOrMore(attr_arg + Suppress(Optional(','))) + Suppress(r_paren)
+	attr_args = Suppress(l_paren) + delimitedList(attr_arg) + Suppress(r_paren)
 
 	comment = (hashmark + restOfLine).suppress()
 	attribute_lit = Group(Suppress(at) + identifier + attr_args).setParseAction(apply_attribute)
@@ -142,6 +142,7 @@ def parse(input):
 
 	grobb_file = ZeroOrMore(alias_group | struct_group | import_group)
 	grobb_file.ignore(comment)
+	grobb_file.ignore(cStyleComment)
 
 	grobb_file.parseString(input)
 
