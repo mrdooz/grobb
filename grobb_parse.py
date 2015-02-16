@@ -127,7 +127,7 @@ def parse(input):
 
 	parent_group = Suppress(colon) + identifier
 
-	default_value = int_or_float | vec2_value | vec3_value | vec4_value
+	default_value = bool_value | int_or_float | vec2_value | vec3_value | vec4_value
 
 	struct_member = Group(ZeroOrMore(attribute_lit)) + full_type_lit + identifier + Group(Optional(Suppress(equals) + default_value)) + Suppress(semi)
 
@@ -352,6 +352,7 @@ def process_file(args, first_file, filename):
 			'compare_hpp': compare_hpp_base,
 			'types_file': types_file,
 			'basic_types': args.basic_types,
+			'no_matrix': args.no_matrix,
 			'lib_dir': args.lib_dir if args.lib_dir else '',
 			'namespace': args.namespace
 		}
@@ -388,6 +389,7 @@ group.add_argument("--generate_lib", help='Should the library files also be gene
 parser.add_argument("--namespace", action="store")
 parser.add_argument("--out_dir", help='Output directory', action='store', default='gen')
 parser.add_argument("--basic_types", help='Only generate code for basic types (no vector/matrix)', action='store_true')
+parser.add_argument("--no_matrix", help='Dont output any matrix code', action='store_true')
 parser.add_argument('--types_file', action='store')
 parser.add_argument('--imgui', action='store_true')
 parser.add_argument('--compare', action='store_true')
