@@ -107,7 +107,7 @@ def parse(input):
                        Optional( point + Optional(number_value) ) +
                        Optional( e + integer_value )
                      )
-	int_or_float = integer_value | float_value
+	int_or_float = float_value | integer_value
 
 	vec2_value = (Suppress('{') + int_or_float + Suppress(',') + int_or_float + Suppress('}'))
 	vec3_value = (Suppress('{') + int_or_float + Suppress(',') + int_or_float + Suppress(',') + int_or_float + Suppress('}'))
@@ -144,7 +144,12 @@ def parse(input):
 	grobb_file.ignore(comment)
 	grobb_file.ignore(cStyleComment)
 
-	grobb_file.parseString(input)
+	try:
+		grobb_file.parseString(input)
+	except ParseException, err:
+		print err.line
+		print " "*(err.column-1) + "^"
+		print err
 
 def apply_attribute(str, loc, toks):
 	if VERBOSE > 2:
@@ -226,7 +231,7 @@ def process_import(s, l, t):
 		module_stack.pop()
 
 class Member():
-	def __init__(self, type, org_type,  attributes, is_array, name, default_value):
+	def __init__(self, type, org_type, attributes, is_array, name, default_value):
 		self.type = type
 		self.org_type = org_type
 		self.attributes = attributes
@@ -291,14 +296,16 @@ def process_file(args, first_file, filename):
 			s = structs[name]
 			members = []
 			for member in s.members:
+
 				members.append({
 					'name': member.name,
 					'alias': type_alias,
 					'attributes': member.attributes,
 					'is_array': member.is_array,
-					'print_type': member.print_type,
+					'type_name': member.print_type,
 					'inner_type': member.inner_type,
-					'parser': 'Parse' + first_upper(member.inner_type),
+					# if the type has been aliased, then use the unaliased type as the parse type
+					'parser': 'Parse' + first_upper(member.inner_type if member.org_type == member.type else underscore_to_sentence(member.org_type)),
 					'default_value': ','.join(member.default_value) if member.default_value else None,
 					'basic_types': member.org_type in basic_types,
 					'writer': 'Serialize'
