@@ -238,7 +238,8 @@ class Member():
 		self.is_array = is_array
 		self.name = name
 		self.print_type = type
-		self.default_value = default_value
+		# if the default value is a float, append a '.f' to avoid compiler warnings
+		self.default_value = [v + 'f' if '.' in v else v for v in default_value]
 		# if the type isn't built in, use title case
 		if not org_type in builtin_types:
 			self.print_type = underscore_to_sentence(org_type)
