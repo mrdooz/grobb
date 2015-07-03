@@ -25,7 +25,7 @@ bool ParseMat2(InputBuffer& buf, {{ alias.get('mat2', 'mat2') }}* res);
 {% endif %}
 bool ParseInt(InputBuffer& buf, int* res);
 bool ParseString(InputBuffer& buf, string* res);
-bool ParseIdentifier(InputBuffer& buf, string* res);
+bool ParseIdentifier(InputBuffer& buf, string* res, bool colon = true);
 
 void Serialize(OutputBuffer& buf, bool value);
 void Serialize(OutputBuffer& buf, int value);

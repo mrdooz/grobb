@@ -212,15 +212,18 @@ bool ParseString(InputBuffer& buf, string* res)
 }
 
 //-----------------------------------------------------------------------------
-bool ParseIdentifier(InputBuffer& buf, string* res)
+bool ParseIdentifier(InputBuffer& buf, string* res, bool colon)
 {
   // an identifier consists of 'id:', so we parse the id, and then find the trailing ':'
   size_t start = buf._idx;
   size_t end;
   CHECKED_OP(buf.SkipWhile(InputBuffer::IsAlphaNum, &end));
 
-  // find the trailing ':'
-  CHECKED_OP(buf.SkipUntil(':', true));
+  if (colon)
+  {
+    // find the trailing ':'
+    CHECKED_OP(buf.SkipUntil(':', true));
+  }
 
   return buf.SubStr(start, end - start, res);
 }

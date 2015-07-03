@@ -51,7 +51,8 @@ bool InputBuffer::Get(char* res)
     return false;
 
   *res = _buf[_idx++];
-  return _idx != _len;
+  // Because idx is incremented, we compare against <=, and not just <
+  return _idx <= _len;
 }
 
 //-----------------------------------------------------------------------------
