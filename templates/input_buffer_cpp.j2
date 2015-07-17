@@ -202,6 +202,58 @@ bool InputBuffer::SubStr(size_t start, size_t len, string* res)
   return true;
 }
 
+//-----------------------------------------------------------------------------
+bool InputBuffer::InnerScope(const char* delim, InputBuffer* scope)
+{
+  // Note, the scope contains both the delimiters
+  char open = delim[0];
+  char close = delim[1];
+
+  const char* start = &_buf[_idx];
+  const char* end = &_buf[_idx + _len];
+  const char* cur = start;
+
+  // find opening delimiter
+  while (cur < end)
+  {
+    if (*cur++ == open)
+      break;
+  }
+
+  if (cur == end)
+    return false;
+
+  scope->_buf = cur - 1;
+  scope->_idx = 0;
+
+  // find closing
+  int cnt = 0;
+  while (cur < end)
+  {
+    char ch = *cur;
+    if (ch == close)
+    {
+      if (cnt == 0)
+      {
+        // found the scope
+        scope->_len = cur - scope->_buf + 1;
+        return true;
+      }
+      else
+      {
+        --cnt;
+      }
+    }
+    else if (ch == open)
+    {
+      ++cnt;
+    }
+    ++cur;
+  }
+  return false;
+}
+
+
 {% if namespace %}
 }
 {% endif %}

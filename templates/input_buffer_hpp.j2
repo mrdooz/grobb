@@ -31,10 +31,13 @@ struct InputBuffer
   bool ConsumeIf(char ch, bool* res);
   bool Eof();
 
+  bool InnerScope(const char* delim, InputBuffer* scope);
+
   const char* _buf;
   size_t _idx;
   size_t _len;
 };
+
 
 {% if namespace %}
 }
