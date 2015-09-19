@@ -1,4 +1,3 @@
-import sys
 import os
 import graph
 import argparse
@@ -10,38 +9,47 @@ from jinja2 import Environment, PackageLoader, FileSystemLoader
 
 VERBOSE = 0
 
+
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     return izip_longest(fillvalue=fillvalue, *args)
 
+
 def underscore_to_sentence(str):
-	s = str.split('_')
-	return ''.join(map(lambda x: x.title(), s))
+    s = str.split('_')
+    return ''.join(map(lambda x: x.title(), s))
+
 
 def first_upper(str):
-	return str[0].upper() + str[1:]
+    return str[0].upper() + str[1:]
+
 
 def render_to_file(file, template_name, args):
-	template = ENV.get_template(template_name)
-	res = template.render(args)
-	open(file, 'wt').writelines(res)
+    template = ENV.get_template(template_name)
+    res = template.render(args)
+    open(file, 'wt').writelines(res)
+
 
 def safe_mkdir(path):
-	try:
-		os.mkdir(path)
-	except OSError:
-		pass
+    try:
+        os.mkdir(path)
+    except OSError:
+        pass
 
 basic_types = set(['int', 'float', 'bool', 'string'])
-builtin_types = set(['int', 'float', 'bool', 'string', 'color', 'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'])
+builtin_types = set([
+    'int', 'float', 'bool', 'string', 'color',
+    'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'])
 
 # to ensure that the script can be run from any dir, we need to extract
 # the script dir to use as a base
 script_dir, _ = os.path.split(os.path.realpath(__file__))
 template_dir = os.path.join(script_dir, 'templates')
-ENV = Environment(loader=FileSystemLoader(template_dir), lstrip_blocks=True, trim_blocks=True)
+ENV = Environment(
+    loader=FileSystemLoader(template_dir),
+    lstrip_blocks=True, trim_blocks=True)
 
 GRAPH = graph.Graph()
 
@@ -54,341 +62,354 @@ dependencies = collections.defaultdict(set)
 type_alias = {}
 structs = {}
 
+
 def parse(input):
 
-	array_lit = Literal('[]')
-	l_brace = Literal('{')
-	r_brace = Literal('}')
-	l_paren = Literal('(')
-	r_paren = Literal(')')
-	semi = Literal(';')
-	equals = Literal('=');
-	colon = Literal(':')
-	quote = Literal("'")
-	hashmark = Literal('#')
-	at = Literal('@')
-	point = Literal('.')
-	e = CaselessLiteral('E')
-	plus_or_minus = Literal('+') | Literal('-')
+    array_lit = Literal('[]')
+    l_brace = Literal('{')
+    r_brace = Literal('}')
+    l_paren = Literal('(')
+    r_paren = Literal(')')
+    semi = Literal(';')
+    equals = Literal('=')
+    colon = Literal(':')
+    quote = Literal("'")
+    hashmark = Literal('#')
+    at = Literal('@')
+    point = Literal('.')
+    e = CaselessLiteral('E')
+    plus_or_minus = Literal('+') | Literal('-')
 
-	# keywords
-	struct_lit = Keyword('struct')
-	import_lit = Keyword('import')
-	type_alias_lit = Keyword('alias')
+    # keywords
+    struct_lit = Keyword('struct')
+    import_lit = Keyword('import')
+    type_alias_lit = Keyword('alias')
 
-	# types
-	int_lit = Keyword('int')
-	float_lit = Keyword('float')
-	bool_lit = Keyword('bool')
-	string_lit = Keyword('string')
+    # types
+    int_lit = Keyword('int')
+    float_lit = Keyword('float')
+    bool_lit = Keyword('bool')
+    string_lit = Keyword('string')
 
-	color_lit = Keyword('color')
+    color_lit = Keyword('color')
 
-	vec2_lit = Keyword('vec2')
-	vec3_lit = Keyword('vec3')
-	vec4_lit = Keyword('vec4')
+    vec2_lit = Keyword('vec2')
+    vec3_lit = Keyword('vec3')
+    vec4_lit = Keyword('vec4')
 
-	mat2_lit = Keyword('mat2')
-	mat3_lit = Keyword('mat3')
-	mat4_lit = Keyword('mat4')
+    mat2_lit = Keyword('mat2')
+    mat3_lit = Keyword('mat3')
+    mat4_lit = Keyword('mat4')
 
-	custom_lit = Word(alphas, alphanums + '_')
-	identifier = Word(alphas, alphanums + '_')
+    custom_lit = Word(alphas, alphanums + '_')
+    identifier = Word(alphas, alphanums + '_')
 
-	string_value = Suppress(quote) + identifier + Suppress(quote)
+    filename_lit = QuotedString("'\"")
+    import_lit = Keyword('import')
 
-	filename_lit = (Suppress(quote) + identifier + Optional('.' + identifier) + Suppress(quote))
-	import_lit = Keyword('import')
+    number_value = Word(nums)
+    integer_value = Combine(Optional(plus_or_minus) + number_value)
+    bool_value = CaselessLiteral('true') | CaselessLiteral('false')
+    float_value = Combine(
+        integer_value +
+        Optional(point + Optional(number_value)) +
+        Optional(e + integer_value)
+    )
+    int_or_float = float_value | integer_value
 
-	number_value = Word(nums)
-	integer_value = Combine(Optional(plus_or_minus) + number_value)
-	bool_value = CaselessLiteral('true') | CaselessLiteral('false')
-	float_value = Combine(integer_value +
-                       Optional( point + Optional(number_value) ) +
-                       Optional( e + integer_value )
-                     )
-	int_or_float = float_value | integer_value
+    vec2_value = nestedExpr(
+        '{', '}',
+        int_or_float + Suppress(',') + int_or_float)
+    vec3_value = nestedExpr(
+        '{', '}',
+        int_or_float + Suppress(',') +
+        int_or_float + Suppress(',') + int_or_float)
+    vec4_value = nestedExpr(
+        '{', '}',
+        int_or_float + Suppress(',') +
+        int_or_float + Suppress(',') +
+        int_or_float + Suppress(',') +
+        int_or_float)
 
-	vec2_value = (Suppress('{') + int_or_float + Suppress(',') + int_or_float + Suppress('}'))
-	vec3_value = (Suppress('{') + int_or_float + Suppress(',') + int_or_float + Suppress(',') + int_or_float + Suppress('}'))
-	vec4_value = (Suppress('{') + int_or_float + Suppress(',') + int_or_float + Suppress(',') + int_or_float + Suppress(',') + int_or_float + Suppress('}'))
+    # attributes can only have a subset of types
+    # attr_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit
+    builtin_type_list = (
+        int_lit ^ float_lit ^ bool_lit ^ string_lit ^ color_lit
+        ^ vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit)
+    type_lit = (custom_lit ^ builtin_type_list)
+    full_type_lit = Group(type_lit + Optional(array_lit))
 
-	# attributes can only have a subset of types
-	attr_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit
-	builtin_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit ^ color_lit ^ vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit
-	type_lit = (custom_lit ^ builtin_type_list)
-	full_type_lit = Group(type_lit + Optional(array_lit))
+    attr_arg = Group(
+        identifier + Suppress(colon) + (int_or_float | bool_value))
+    attr_args = nestedExpr('(', ')', delimitedList(attr_arg))
 
-	attr_arg = Group(identifier + Suppress(colon) + (int_or_float | bool_value))
-	attr_args = Suppress(l_paren) + delimitedList(attr_arg) + Suppress(r_paren)
+    comment = (hashmark + restOfLine).suppress()
+    attribute_lit = Group(Suppress(at) + identifier + attr_args).setParseAction(apply_attribute)
 
-	comment = (hashmark + restOfLine).suppress()
-	attribute_lit = Group(Suppress(at) + identifier + attr_args).setParseAction(apply_attribute)
+    parent_group = Suppress(colon) + identifier
 
-	parent_group = Suppress(colon) + identifier
+    default_value = bool_value | int_or_float | vec2_value | vec3_value | vec4_value
 
-	default_value = bool_value | int_or_float | vec2_value | vec3_value | vec4_value
+    struct_member = Group(ZeroOrMore(attribute_lit)) + full_type_lit + identifier + Group(Optional(Suppress(equals) + default_value)) + Suppress(semi)
 
-	struct_member = Group(ZeroOrMore(attribute_lit)) + full_type_lit + identifier + Group(Optional(Suppress(equals) + default_value)) + Suppress(semi)
+    alias_group = (Suppress(type_alias_lit) + builtin_type_list + Suppress(equals) 
+        + identifier + Suppress(semi)).setParseAction(create_type_alias)
 
-	alias_group = (Suppress(type_alias_lit) + builtin_type_list + Suppress(equals) 
-		+ identifier + Suppress(semi)).setParseAction(create_type_alias)
+    struct_group = (Group(Optional(OneOrMore(attribute_lit))) + Suppress(struct_lit) 
+        + Group(identifier + Optional(parent_group)) + Suppress(l_brace) 
+        + Group(ZeroOrMore(struct_member)) + Suppress(r_brace + semi)).setParseAction(create_struct)
 
-	struct_group = (Group(Optional(OneOrMore(attribute_lit))) + Suppress(struct_lit) 
-		+ Group(identifier + Optional(parent_group)) + Suppress(l_brace) 
-		+ Group(ZeroOrMore(struct_member)) + Suppress(r_brace + semi)).setParseAction(create_struct)
+    import_group = (Suppress(import_lit) + filename_lit + Suppress(semi)).setParseAction(process_import)
 
-	import_group = (Suppress(import_lit) + filename_lit + Suppress(semi)).setParseAction(process_import)
+    grobb_file = ZeroOrMore(alias_group | struct_group | import_group)
+    grobb_file.ignore(comment)
+    grobb_file.ignore(cStyleComment)
 
-	grobb_file = ZeroOrMore(alias_group | struct_group | import_group)
-	grobb_file.ignore(comment)
-	grobb_file.ignore(cStyleComment)
-
-	try:
-		grobb_file.parseString(input)
-	except ParseException, err:
-		print err.line
-		print " "*(err.column-1) + "^"
-		print err
+    try:
+        grobb_file.parseString(input)
+    except ParseException, err:
+        print err.line
+        print " "*(err.column-1) + "^"
+        print err
 
 def apply_attribute(str, loc, toks):
-	if VERBOSE > 2:
-		print 'found attribute: ', toks
-	pass
+    if VERBOSE > 2:
+        print 'found attribute: ', toks
+    pass
 
 def collect_attributes(input):
-	if len(input) == 0:
-		return None
+    if len(input) == 0:
+        return None
 
-	res = {}
-	for attr in input:
-		# first item is the attribute name, then the key/value pairs
-		name = attr[0]
-		attrs = {}
-		for x in attr[1:]:
-			attrs[x[0]] = x[1]
-		res[name] = attrs
-	return res
+    res = {}
+    for attr in input:
+        # first item is the attribute name, then the key/value pairs
+        name = attr[0]
+        attrs = {}
+        for x in attr[1:]:
+            attrs[x[0]] = x[1]
+        res[name] = attrs
+    return res
 
 def create_struct(s, l, toks):
-	# toks[0] = any attributes
-	# toks[1] = struct class (and optional parent)
-	# toks[2] = struct members
+    # toks[0] = any attributes
+    # toks[1] = struct class (and optional parent)
+    # toks[2] = struct members
 
-	# the type can have an optional parent
-	name = toks[1][0]
-	parent = None
-	if len(toks[1]) > 1: parent = toks[1][1]
-	s = Struct(name)
-	structs[name] = s
-	members = toks[2]
-	if VERBOSE > 0: 
-		print 'Adding struct: %s' % (name)
+    # the type can have an optional parent
+    name = toks[1][0]
+    parent = None
+    if len(toks[1]) > 1: parent = toks[1][1]
+    s = Struct(name)
+    structs[name] = s
+    members = toks[2]
+    if VERBOSE > 0: 
+        print 'Adding struct: %s' % (name)
 
-	# add the attributes
-	s.attributes = collect_attributes(toks[0])
+    # add the attributes
+    s.attributes = collect_attributes(toks[0])
 
-	# add the parents members first
-	if parent:
-		p = structs[parent]
-		for member in p.members:
-			s.add_member(member)
+    # add the parents members first
+    if parent:
+        p = structs[parent]
+        for member in p.members:
+            s.add_member(member)
 
-	# add the members
-	for attrs, type, name, default_value in grouper(members, 4):
-		# [0] = attributes
-		# [1] = type (tuple)
-		# [2] = name
-		# [3] = default value
-		attributes = collect_attributes(attrs)
-		# if the type is aliased, use the alias instead
-		base_type = type_alias.get(type[0], type[0])
-		org_type = type[0]
-		is_array = len(type) > 1
-		s.add_member(Member(base_type, org_type, attributes, is_array, name, default_value))
+    # add the members
+    for attrs, type, name, default_value in grouper(members, 4):
+        # [0] = attributes
+        # [1] = type (tuple)
+        # [2] = name
+        # [3] = default value
+        attributes = collect_attributes(attrs)
+        # if the type is aliased, use the alias instead
+        base_type = type_alias.get(type[0], type[0])
+        org_type = type[0]
+        is_array = len(type) > 1
+        s.add_member(Member(base_type, org_type, attributes, is_array, name, default_value))
 
 def create_type_alias(s, l, toks):
-	tt = toks[0]
-	if tt in type_alias:
-		print 'Duplicate type alias found: %s' % tt
-		exit(1)
-	print 'Found alias %s -> %s' % (tt, toks[1])
-	type_alias[tt] = toks[1]
+    tt = toks[0]
+    if tt in type_alias:
+        print 'Duplicate type alias found: %s' % tt
+        exit(1)
+    print 'Found alias %s -> %s' % (tt, toks[1])
+    type_alias[tt] = toks[1]
 
 def process_import(s, l, t):
-	import_name = ''.join(t)
-	(module_path, module_name) = module_stack[-1]
-	dependencies[module_name].add(import_name)
-	# if the module hasn't been seen already, add it to the processing stack, and parse it
-	if not import_name in processed_modules:
-		# the imported module has the same path as the one that imported it. yeah, this
-		# will break for more complicated relative imports, but i'll solve that when i
-		# get there :)
-		module_stack.append((module_path, import_name))
-		r = open(os.path.join(module_path, import_name)).read()
-		parse(r)
-		processed_modules.add(import_name)
-		module_stack.pop()
+    import_name = ''.join(t)
+    (module_path, module_name) = module_stack[-1]
+    dependencies[module_name].add(import_name)
+    # if the module hasn't been seen already, add it to the processing stack, and parse it
+    if not import_name in processed_modules:
+        # the imported module has the same path as the one that imported it. yeah, this
+        # will break for more complicated relative imports, but i'll solve that when i
+        # get there :)
+        module_stack.append((module_path, import_name))
+        r = open(os.path.join(module_path, import_name)).read()
+        parse(r)
+        processed_modules.add(import_name)
+        module_stack.pop()
 
 class Member():
-	def __init__(self, type, org_type, attributes, is_array, name, default_value):
-		self.type = type
-		self.org_type = org_type
-		self.attributes = attributes
-		self.is_array = is_array
-		self.name = name
-		self.print_type = type
-		# if the default value is a float, append a '.f' to avoid compiler warnings
-		self.default_value = [v + 'f' if '.' in v else v for v in default_value]
-		# if the type isn't built in, use title case
-		if not org_type in builtin_types:
-			self.print_type = underscore_to_sentence(org_type)
+    def __init__(self, type, org_type, attributes, is_array, name, default_value):
+        self.type = type
+        self.org_type = org_type
+        self.attributes = attributes
+        self.is_array = is_array
+        self.name = name
+        self.print_type = type
+        # if the default value is a float, append a '.f' to avoid compiler warnings
+        self.default_value = [v + 'f' if '.' in v else v for v in default_value]
+        # if the type isn't built in, use title case
+        if not org_type in builtin_types:
+            self.print_type = underscore_to_sentence(org_type)
 
-		self.inner_type = self.print_type
-		if is_array:
-			self.print_type = 'vector<%s>' % self.inner_type
+        self.inner_type = self.print_type
+        if is_array:
+            self.print_type = 'vector<%s>' % self.inner_type
 
-	def __repr__(self):
-		return "%s: %s%s" % (self.name, self.org_type, '[]' if self.array else '')
+    def __repr__(self):
+        return "%s: %s%s" % (self.name, self.org_type, '[]' if self.array else '')
 
-	def is_builtin(self):
-		return self.org_type in builtin_types
+    def is_builtin(self):
+        return self.org_type in builtin_types
 
 class Struct():
-	def __init__(self, name):
-		self.name = name
-		self.members = []
-		self.attributes = {}
-		GRAPH.add_node(name)
-		self.module_path, self.module = module_stack[-1]
-		struct_by_module[self.module].add(name)
+    def __init__(self, name):
+        self.name = name
+        self.members = []
+        self.attributes = {}
+        GRAPH.add_node(name)
+        self.module_path, self.module = module_stack[-1]
+        struct_by_module[self.module].add(name)
 
-	def __repr__(self):
-		return self.name + ':' + repr(self.members)
+    def __repr__(self):
+        return self.name + ':' + repr(self.members)
 
-	def add_member(self, member):
-		self.members.append(member)
-		# if the member type isn't a built in type, add an edge from the member to the struct
-		# (the member is a leaf of the struct)
-		if not member.is_builtin():
-			n = member.type
-			GRAPH.add_node(n, self.name)
+    def add_member(self, member):
+        self.members.append(member)
+        # if the member type isn't a built in type, add an edge from the member to the struct
+        # (the member is a leaf of the struct)
+        if not member.is_builtin():
+            n = member.type
+            GRAPH.add_node(n, self.name)
 
 
 def process_file(args, first_file, filename):
-	# note, we drop the directory part of the input when we save to module_name
-	_, module_name = os.path.split(filename)
-	p = os.path.dirname(os.path.realpath(filename))
-	module_path = os.path.join(p, module_name)
-	module_stack.append((p, module_name))
-	r = file(module_path).read()
-	parse(r)
+    # note, we drop the directory part of the input when we save to module_name
+    _, module_name = os.path.split(filename)
+    p = os.path.dirname(os.path.realpath(filename))
+    module_path = os.path.join(p, module_name)
+    module_stack.append((p, module_name))
+    r = file(module_path).read()
+    parse(r)
 
-	# perform a topological sort over the types so we can print them in non-dependant order
-	order = GRAPH.topological_sort()
+    # perform a topological sort over the types so we can print them in non-dependant order
+    order = GRAPH.topological_sort()
 
-	# output the generated code per module
-	for module, ss in struct_by_module.iteritems():
+    # output the generated code per module
+    for module, ss in struct_by_module.iteritems():
 
-		# grab the structs that are in the current module
-		to_process = [x.name for x in order if x.name in ss]
-		params = []
-		for name in to_process:
-			s = structs[name]
-			members = []
-			for member in s.members:
+        # grab the structs that are in the current module
+        to_process = [x.name for x in order if x.name in ss]
+        params = []
+        for name in to_process:
+            s = structs[name]
+            members = []
+            for member in s.members:
 
-				members.append({
-					'name': member.name,
-					'alias': type_alias,
-					'attributes': member.attributes,
-					'is_array': member.is_array,
-					'type_name': member.print_type,
-					'inner_type': member.inner_type,
-					# if the type has been aliased, then use the unaliased type as the parse type
-					'parser': 'Parse' + first_upper(member.inner_type if member.org_type == member.type else underscore_to_sentence(member.org_type)),
-					'default_value': ','.join(member.default_value) if member.default_value else None,
-					'basic_types': member.org_type in basic_types,
-					'writer': 'Serialize'
-				})
-			params.append({ 
-				'name': underscore_to_sentence(name),
-				'attributes': s.attributes,
-				'members': members
-			})
+                members.append({
+                    'name': member.name,
+                    'alias': type_alias,
+                    'attributes': member.attributes,
+                    'is_array': member.is_array,
+                    'type_name': member.print_type,
+                    'inner_type': member.inner_type,
+                    # if the type has been aliased, then use the unaliased type as the parse type
+                    'parser': 'Parse' + first_upper(member.inner_type if member.org_type == member.type else underscore_to_sentence(member.org_type)),
+                    'default_value': ','.join(member.default_value) if member.default_value else None,
+                    'basic_types': member.org_type in basic_types,
+                    'writer': 'Serialize'
+                })
+            params.append({ 
+                'name': underscore_to_sentence(name),
+                'attributes': s.attributes,
+                'members': members
+            })
 
-		module_base, tail = os.path.splitext(module)
-		types_hpp_base = module_base + '.types.hpp'
-		parse_hpp_base = module_base + '.parse.hpp'
-		parse_cpp_base = module_base + '.parse.cpp'
-		compare_hpp_base = module_base + '.compare.hpp'
-		compare_cpp_base = module_base + '.compare.cpp'
-		imgui_hpp_base = module_base + '.imgui.hpp'
-		imgui_cpp_base = module_base + '.imgui.cpp'
-		types_hpp_file = os.path.join(out_dir, types_hpp_base)
-		parse_hpp_file = os.path.join(out_dir, parse_hpp_base)
-		parse_cpp_file = os.path.join(out_dir, parse_cpp_base)
-		compare_hpp_file = os.path.join(out_dir, compare_hpp_base)
-		compare_cpp_file = os.path.join(out_dir, compare_cpp_base)
-		imgui_hpp_file = os.path.join(out_dir, imgui_hpp_base)
-		imgui_cpp_file = os.path.join(out_dir, imgui_cpp_base)
+        module_base, tail = os.path.splitext(module)
+        types_hpp_base = module_base + '.types.hpp'
+        parse_hpp_base = module_base + '.parse.hpp'
+        parse_cpp_base = module_base + '.parse.cpp'
+        compare_hpp_base = module_base + '.compare.hpp'
+        compare_cpp_base = module_base + '.compare.cpp'
+        imgui_hpp_base = module_base + '.imgui.hpp'
+        imgui_cpp_base = module_base + '.imgui.cpp'
+        types_hpp_file = os.path.join(out_dir, types_hpp_base)
+        parse_hpp_file = os.path.join(out_dir, parse_hpp_base)
+        parse_cpp_file = os.path.join(out_dir, parse_cpp_base)
+        compare_hpp_file = os.path.join(out_dir, compare_hpp_base)
+        compare_cpp_file = os.path.join(out_dir, compare_cpp_base)
+        imgui_hpp_file = os.path.join(out_dir, imgui_hpp_base)
+        imgui_cpp_file = os.path.join(out_dir, imgui_cpp_base)
 
-		type_deps = []
-		parse_deps = []
-		for dep in dependencies[module]:
-			# only add the dependency if the module has any structs
-			if dep in struct_by_module:
-				dep_head, _ = os.path.splitext(dep)
-				type_deps.append(dep_head + '.types.hpp')
-				parse_deps.append(dep_head + '.parse.hpp')
+        type_deps = []
+        parse_deps = []
+        for dep in dependencies[module]:
+            # only add the dependency if the module has any structs
+            if dep in struct_by_module:
+                dep_head, _ = os.path.splitext(dep)
+                type_deps.append(dep_head + '.types.hpp')
+                parse_deps.append(dep_head + '.parse.hpp')
 
-		# compute relative path from the output dir to the directory containing
-		# the parse types
-		types_file = None
-		if args.types_file:
-			head, tail = os.path.split(args.types_file)
-			if not head: head = './'
-			types_file = os.path.join(os.path.relpath(head, out_dir), tail)
+        # compute relative path from the output dir to the directory containing
+        # the parse types
+        types_file = None
+        if args.types_file:
+            head, tail = os.path.split(args.types_file)
+            if not head: head = './'
+            types_file = os.path.join(os.path.relpath(head, out_dir), tail)
 
-		template_args = {
-			'structs': params, 
-			'alias': type_alias,
-			'type_deps': type_deps,
-			'parse_deps': parse_deps,
-			'parse_hpp': parse_hpp_base,
-			'types_hpp': types_hpp_base,
-			'compare_hpp': compare_hpp_base,
-			'types_file': types_file,
-			'basic_types': args.basic_types,
-			'no_matrix': args.no_matrix,
-			'lib_dir': args.lib_dir if args.lib_dir else '',
-			'namespace': args.namespace
-		}
+        template_args = {
+            'structs': params, 
+            'alias': type_alias,
+            'type_deps': type_deps,
+            'parse_deps': parse_deps,
+            'parse_hpp': parse_hpp_base,
+            'types_hpp': types_hpp_base,
+            'compare_hpp': compare_hpp_base,
+            'types_file': types_file,
+            'basic_types': args.basic_types,
+            'no_matrix': args.no_matrix,
+            'lib_dir': args.lib_dir if args.lib_dir else '',
+            'namespace': args.namespace
+        }
 
-		render_to_file(types_hpp_file, 'types_hpp.j2', template_args)
-		render_to_file(parse_hpp_file, 'parse_hpp.j2', template_args)
-		render_to_file(parse_cpp_file, 'parse_cpp.j2', template_args)
+        render_to_file(types_hpp_file, 'types_hpp.j2', template_args)
+        render_to_file(parse_hpp_file, 'parse_hpp.j2', template_args)
+        render_to_file(parse_cpp_file, 'parse_cpp.j2', template_args)
 
-		if args.compare:
-			render_to_file(compare_hpp_file, 'compare_hpp.j2', template_args)
-			render_to_file(compare_cpp_file, 'compare_cpp.j2', template_args)
+        if args.compare:
+            render_to_file(compare_hpp_file, 'compare_hpp.j2', template_args)
+            render_to_file(compare_cpp_file, 'compare_cpp.j2', template_args)
 
-		if args.imgui:
-			render_to_file(imgui_hpp_file, 'imgui_hpp.j2', template_args)
-			render_to_file(imgui_cpp_file, 'imgui_cpp.j2', template_args)
+        if args.imgui:
+            render_to_file(imgui_hpp_file, 'imgui_hpp.j2', template_args)
+            render_to_file(imgui_cpp_file, 'imgui_cpp.j2', template_args)
 
-		if args.generate_lib and first_file:
-			files = { 
-				'input_buffer_hpp.j2': 'input_buffer.hpp',
-				'input_buffer_cpp.j2': 'input_buffer.cpp',
-				'output_buffer_hpp.j2': 'output_buffer.hpp',
-				'output_buffer_cpp.j2': 'output_buffer.cpp',
-				'parse_base_hpp.j2': 'parse_base.hpp',
-				'parse_base_cpp.j2': 'parse_base.cpp'
-			}
+        if args.generate_lib and first_file:
+            files = { 
+                'input_buffer_hpp.j2': 'input_buffer.hpp',
+                'input_buffer_cpp.j2': 'input_buffer.cpp',
+                'output_buffer_hpp.j2': 'output_buffer.hpp',
+                'output_buffer_cpp.j2': 'output_buffer.cpp',
+                'parse_base_hpp.j2': 'parse_base.hpp',
+                'parse_base_cpp.j2': 'parse_base.cpp'
+            }
 
-			for t, f in files.iteritems():
-				render_to_file(os.path.join(out_dir, f), t, template_args)
+            for t, f in files.iteritems():
+                render_to_file(os.path.join(out_dir, f), t, template_args)
 
 parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group()
@@ -411,6 +432,6 @@ safe_mkdir(out_dir)
 
 first_file = True
 for input in glob.glob(args.input):
-	process_file(args, first_file, input)
-	first_file = False
+    process_file(args, first_file, input)
+    first_file = False
 
