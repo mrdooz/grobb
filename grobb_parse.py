@@ -3,8 +3,15 @@ import graph
 import argparse
 import collections
 import glob
-from pyparsing import *
-from itertools import *
+from pyparsing import (
+    alphas, nums, alphanums,
+    Keyword, Literal, Word, Optional, Combine,
+    QuotedString, CaselessLiteral, Suppress,
+    Group, restOfLine, delimitedList, ZeroOrMore,
+    cStyleComment, ParseException, OneOrMore
+)
+
+from itertools import izip_longest
 from jinja2 import Environment, FileSystemLoader
 
 VERBOSE = 0
@@ -355,12 +362,19 @@ def process_file(args, first_file, filename):
                     # if the type has been aliased, then use the unaliased
                     # type as the parse type
                     'parser': 'Parse' + first_upper(
-                        member.inner_type if member.org_type == member.type else underscore_to_sentence(member.org_type)),
-                    'default_value': ','.join(member.default_value) if member.default_value else None,
+                        member.inner_type
+                        if member.org_type == member.type
+                        else underscore_to_sentence(member.org_type)
+                    ),
+                    'default_value': (
+                        ','.join(member.default_value)
+                        if member.default_value
+                        else None
+                    ),
                     'basic_types': member.org_type in basic_types,
                     'writer': 'Serialize'
                 })
-            params.append({ 
+            params.append({
                 'name': underscore_to_sentence(name),
                 'attributes': s.attributes,
                 'members': members
@@ -427,27 +441,28 @@ def process_file(args, first_file, filename):
             render_to_file(imgui_hpp_file, 'imgui_hpp.j2', template_args)
             render_to_file(imgui_cpp_file, 'imgui_cpp.j2', template_args)
 
-        if args.generate_lib and first_file:
-            files = {
-                'input_buffer_hpp.j2': 'input_buffer.hpp',
-                'input_buffer_cpp.j2': 'input_buffer.cpp',
-                'output_buffer_hpp.j2': 'output_buffer.hpp',
-                'output_buffer_cpp.j2': 'output_buffer.cpp',
-                'parse_base_hpp.j2': 'parse_base.hpp',
-                'parse_base_cpp.j2': 'parse_base.cpp'
-            }
-
-            for t, f in files.iteritems():
-                render_to_file(os.path.join(out_dir, f), t, template_args)
-
 parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group()
-group.add_argument("--lib_dir", help="location of additional cpp files", action="store")
-group.add_argument("--generate_lib", help='Should the library files also be generated', default=False, action='store_true')
+group.add_argument(
+    "--lib_dir",
+    help="location of additional cpp files", action="store")
+group.add_argument(
+    "--generate_lib",
+    help='Should the library files also be generated',
+    default=False, action='store_true')
 parser.add_argument("--namespace", action="store")
-parser.add_argument("--out_dir", help='Output directory', action='store', default='gen')
-parser.add_argument("--basic_types", help='Only generate code for basic types (no vector/matrix)', action='store_true')
-parser.add_argument("--no_matrix", help='Dont output any matrix code', action='store_true')
+parser.add_argument(
+    "--out_dir",
+    help='Output directory',
+    action='store', default='gen')
+parser.add_argument(
+    "--basic_types",
+    help='Only generate code for basic types (no vector/matrix)',
+    action='store_true')
+parser.add_argument(
+    "--no_matrix",
+    help='Dont output any matrix code',
+    action='store_true')
 parser.add_argument('--types_file', action='store')
 parser.add_argument('--imgui', action='store_true')
 parser.add_argument('--compare', action='store_true')
