@@ -2,13 +2,12 @@ import os
 import graph
 import argparse
 import collections
-import glob
 from pyparsing import (
     alphas, nums, alphanums,
     Keyword, Literal, Word, Optional, Combine,
     QuotedString, CaselessLiteral, Suppress,
     Group, restOfLine, delimitedList, ZeroOrMore,
-    cStyleComment, ParseException, OneOrMore
+    cStyleComment, OneOrMore
 )
 
 from itertools import izip_longest
@@ -47,6 +46,7 @@ def safe_mkdir(path):
 
 basic_types = set(['int', 'float', 'bool', 'string'])
 builtin_types = set([
+    's8', 's16', 's32', 's64', 'u8', 'u16', 'u32', 'u64',
     'int', 'float', 'bool', 'string', 'color',
     'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'])
 
@@ -70,124 +70,6 @@ type_alias = {}
 structs = {}
 
 
-def parse(input):
-
-    array_lit = Literal('[]')
-    l_brace = Literal('{')
-    r_brace = Literal('}')
-    l_paren = Literal('(')
-    r_paren = Literal(')')
-    semi = Literal(';')
-    equals = Literal('=')
-    colon = Literal(':')
-    hashmark = Literal('#')
-    at = Literal('@')
-    point = Literal('.')
-    e = CaselessLiteral('E')
-    plus_or_minus = Literal('+') | Literal('-')
-
-    # keywords
-    struct_lit = Keyword('struct')
-    import_lit = Keyword('import')
-    type_alias_lit = Keyword('alias')
-
-    # types
-    int_lit = Keyword('int')
-    float_lit = Keyword('float')
-    bool_lit = Keyword('bool')
-    string_lit = Keyword('string')
-
-    color_lit = Keyword('color')
-
-    vec2_lit = Keyword('vec2')
-    vec3_lit = Keyword('vec3')
-    vec4_lit = Keyword('vec4')
-
-    mat2_lit = Keyword('mat2')
-    mat3_lit = Keyword('mat3')
-    mat4_lit = Keyword('mat4')
-
-    custom_lit = Word(alphas, alphanums + '_')
-    identifier = Word(alphas, alphanums + '_')
-
-    filename_lit = QuotedString("'")
-    import_lit = Keyword('import')
-
-    number_value = Word(nums)
-    integer_value = Combine(Optional(plus_or_minus) + number_value)
-    bool_value = CaselessLiteral('true') | CaselessLiteral('false')
-    float_value = Combine(
-        integer_value +
-        Optional(point + Optional(number_value)) +
-        Optional(e + integer_value)
-    )
-    int_or_float = float_value | integer_value
-
-    vec2_value = (
-        Suppress('{') +
-        int_or_float + Suppress(',') + int_or_float + Suppress('}'))
-    vec3_value = (
-        Suppress('{') +
-        int_or_float + Suppress(',') +
-        int_or_float + Suppress(',') + int_or_float + Suppress('}'))
-    vec4_value = (
-        Suppress('{') +
-        int_or_float + Suppress(',') +
-        int_or_float + Suppress(',') +
-        int_or_float + Suppress(',') + int_or_float + Suppress('}'))
-
-    # attributes can only have a subset of types
-    # attr_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit
-    builtin_type_list = (
-        int_lit ^ float_lit ^ bool_lit ^ string_lit ^ color_lit ^
-        vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit)
-    type_lit = (custom_lit ^ builtin_type_list)
-    full_type_lit = Group(type_lit + Optional(array_lit))
-
-    attr_arg = Group(
-        identifier + Suppress(colon) + (int_or_float | bool_value))
-    attr_args = Suppress(l_paren) + delimitedList(attr_arg) + Suppress(r_paren)
-
-    comment = (hashmark + restOfLine).suppress()
-    attribute_lit = Group(
-        Suppress(at) + identifier + attr_args).setParseAction(apply_attribute)
-
-    parent_group = Suppress(colon) + identifier
-
-    default_value = (
-        bool_value | int_or_float | vec2_value | vec3_value | vec4_value)
-
-    struct_member = (
-        Group(ZeroOrMore(attribute_lit)) +
-        full_type_lit + identifier +
-        Group(Optional(Suppress(equals) + default_value)) + Suppress(semi))
-
-    alias_group = (
-        Suppress(type_alias_lit) + builtin_type_list + Suppress(equals)
-        + identifier + Suppress(semi)).setParseAction(create_type_alias)
-
-    struct_group = (
-        Group(Optional(OneOrMore(attribute_lit))) + Suppress(struct_lit)
-        + Group(identifier + Optional(parent_group)) + Suppress(l_brace)
-        + Group(ZeroOrMore(struct_member)) + Suppress(r_brace + semi)
-    ).setParseAction(create_struct)
-
-    import_group = (
-        Suppress(import_lit) + filename_lit + Suppress(semi)
-    ).setParseAction(process_import)
-
-    grobb_file = ZeroOrMore(alias_group | struct_group | import_group)
-    grobb_file.ignore(comment)
-    grobb_file.ignore(cStyleComment)
-
-    try:
-        grobb_file.parseString(input)
-    except ParseException, err:
-        print err.line
-        print " " * (err.column - 1) + "^"
-        print err
-
-
 def apply_attribute(str, loc, toks):
     if VERBOSE > 2:
         print 'found attribute: ', toks
@@ -206,6 +88,9 @@ def collect_attributes(input):
         for x in attr[1:]:
             attrs[x[0]] = x[1]
         res[name] = attrs
+
+    if VERBOSE > 2:
+        print 'attributes: %r' % res
     return res
 
 
@@ -244,10 +129,14 @@ def create_struct(s, l, toks):
         # if the type is aliased, use the alias instead
         base_type = type_alias.get(type[0], type[0])
         org_type = type[0]
-        is_array = len(type) > 1
+        array_len = -1
+        if len(type) == 4:
+            array_len = int(type[2])
+        elif len(type) == 2:
+            array_len = 0
         s.add_member(
             Member(
-                base_type, org_type, attributes, is_array,
+                base_type, org_type, attributes, array_len,
                 name, default_value))
 
 
@@ -272,19 +161,150 @@ def process_import(s, l, t):
         # but i'll solve that when i get there :)
         module_stack.append((module_path, import_name))
         r = open(os.path.join(module_path, import_name)).read()
-        parse(r)
+        grobb_file.parseString(r)
         processed_modules.add(import_name)
         module_stack.pop()
 
 
+array_lit = Literal('[]')
+fixed_array_lit = Literal('[') + Word(nums) + Literal(']')
+l_brace = Literal('{')
+r_brace = Literal('}')
+l_paren = Literal('(')
+r_paren = Literal(')')
+semi = Literal(';')
+equals = Literal('=')
+colon = Literal(':')
+hashmark = Literal('#')
+at = Literal('@')
+point = Literal('.')
+e = CaselessLiteral('E')
+plus_or_minus = Literal('+') | Literal('-')
+
+# keywords
+struct_lit = Keyword('struct')
+import_lit = Keyword('import')
+type_alias_lit = Keyword('alias')
+
+# types
+int_lit = Keyword('int')
+uint8_lit = Keyword('u8')
+uint16_lit = Keyword('u16')
+uint32_lit = Keyword('u32')
+uint64_lit = Keyword('u64')
+
+int8_lit = Keyword('s8')
+int16_lit = Keyword('s16')
+int32_lit = Keyword('s32')
+int64_lit = Keyword('s64')
+
+float_lit = Keyword('float')
+bool_lit = Keyword('bool')
+string_lit = Keyword('string')
+
+color_lit = Keyword('color')
+
+vec2_lit = Keyword('vec2')
+vec3_lit = Keyword('vec3')
+vec4_lit = Keyword('vec4')
+
+mat2_lit = Keyword('mat2')
+mat3_lit = Keyword('mat3')
+mat4_lit = Keyword('mat4')
+
+custom_lit = Word(alphas, alphanums + '_')
+identifier = Word(alphas, alphanums + '_')
+
+filename_lit = QuotedString("'")
+import_lit = Keyword('import')
+
+number_value = Word(nums)
+integer_value = Combine(Optional(plus_or_minus) + number_value)
+bool_value = CaselessLiteral('true') | CaselessLiteral('false')
+float_value = Combine(
+    integer_value +
+    Optional(point + Optional(number_value)) +
+    Optional(e + integer_value)
+)
+int_or_float = (
+    float_value | integer_value |
+    int8_lit | int16_lit | int32_lit | int64_lit |
+    uint8_lit | uint16_lit | uint32_lit | uint64_lit)
+
+vec2_value = (
+    Suppress('{') +
+    int_or_float + Suppress(',') + int_or_float + Suppress('}'))
+vec3_value = (
+    Suppress('{') +
+    int_or_float + Suppress(',') +
+    int_or_float + Suppress(',') + int_or_float + Suppress('}'))
+vec4_value = (
+    Suppress('{') +
+    int_or_float + Suppress(',') +
+    int_or_float + Suppress(',') +
+    int_or_float + Suppress(',') + int_or_float + Suppress('}'))
+
+# attributes can only have a subset of types
+# attr_type_list = int_lit ^ float_lit ^ bool_lit ^ string_lit
+builtin_type_list = (
+    int8_lit ^ int16_lit ^ int32_lit ^ int64_lit ^
+    uint8_lit ^ uint16_lit ^ uint32_lit ^ uint64_lit ^
+    int_lit ^ float_lit ^ bool_lit ^ string_lit ^ color_lit ^
+    vec2_lit ^ vec3_lit ^ vec4_lit ^ mat2_lit ^ mat3_lit ^ mat4_lit)
+type_lit = (custom_lit ^ builtin_type_list)
+full_type_lit = Group(type_lit + Optional(array_lit | fixed_array_lit))
+
+attr_arg = Group(
+    identifier + Suppress(colon) + (int_or_float | bool_value))
+attr_args = Suppress(l_paren) + delimitedList(attr_arg) + Suppress(r_paren)
+
+comment = (hashmark + restOfLine).suppress()
+attribute_lit = Group(
+    Suppress(at) + identifier + Optional(attr_args)
+).setParseAction(apply_attribute)
+
+parent_group = Suppress(colon) + identifier
+
+default_value = (
+    bool_value | int_or_float | vec2_value | vec3_value | vec4_value)
+
+struct_member = (
+    Group(ZeroOrMore(attribute_lit)) +
+    full_type_lit + identifier +
+    Group(Optional(Suppress(equals) + default_value)) + Suppress(semi)
+)
+
+alias_group = (
+    Suppress(type_alias_lit) + builtin_type_list + Suppress(equals)
+    + identifier + Suppress(semi)).setParseAction(create_type_alias)
+
+struct_group = (
+    Group(Optional(OneOrMore(attribute_lit))) + Suppress(struct_lit)
+    + Group(identifier + Optional(parent_group)) + Suppress(l_brace)
+    + Group(ZeroOrMore(struct_member)) + Suppress(r_brace + semi)
+).setParseAction(create_struct)
+
+import_group = (
+    Suppress(import_lit) + filename_lit + Suppress(semi)
+).setParseAction(process_import)
+
+grobb_file = ZeroOrMore(alias_group | struct_group | import_group)
+grobb_file.ignore(comment)
+grobb_file.ignore(cStyleComment)
+
+
 class Member():
     def __init__(
-        self, type, org_type, attributes, is_array, name, default_value
+        self, type, org_type, attributes, array_len, name, default_value
     ):
+        if VERBOSE > 2:
+            print 'adding member: %r [%r, %r]' % (name, type, org_type)
+
         self.type = type
         self.org_type = org_type
         self.attributes = attributes
-        self.is_array = is_array
+        # -1 = not an array, 0 = variable length, > 0 = fixed size
+        self.array_len = array_len
         self.name = name
         self.print_type = type
         # if the default value is a float, append a '.f' to avoid compiler
@@ -296,7 +316,9 @@ class Member():
             self.print_type = underscore_to_sentence(org_type)
 
         self.inner_type = self.print_type
-        if is_array:
+
+        self.fixed_array = 'fixed' in attributes
+        if array_len == 0:
             self.print_type = 'vector<%s>' % self.inner_type
 
     def __repr__(self):
@@ -328,14 +350,14 @@ class Struct():
             GRAPH.add_node(n, self.name)
 
 
-def process_file(args, first_file, filename):
+def process_file(args, filename):
     # note, we drop the directory part of the input when we save to module_name
     _, module_name = os.path.split(filename)
     p = os.path.dirname(os.path.realpath(filename))
     module_path = os.path.join(p, module_name)
     module_stack.append((p, module_name))
     r = file(module_path).read()
-    parse(r)
+    grobb_file.parseString(r)
 
     # perform a topological sort over the types so we can print them
     # in non-dependant order
@@ -356,7 +378,8 @@ def process_file(args, first_file, filename):
                     'name': member.name,
                     'alias': type_alias,
                     'attributes': member.attributes,
-                    'is_array': member.is_array,
+                    'array_len': member.array_len,
+                    # 'is_array': member.is_array,
                     'type_name': member.print_type,
                     'inner_type': member.inner_type,
                     # if the type has been aliased, then use the unaliased
@@ -429,7 +452,12 @@ def process_file(args, first_file, filename):
             'namespace': args.namespace
         }
 
-        render_to_file(types_hpp_file, 'types_hpp.j2', template_args)
+        if args.binary:
+            render_to_file(types_hpp_file, 'types_hpp.j2', template_args)
+        else:
+            render_to_file(
+                types_hpp_file, 'types_binary_hpp.j2', template_args)
+
         render_to_file(parse_hpp_file, 'parse_hpp.j2', template_args)
         render_to_file(parse_cpp_file, 'parse_cpp.j2', template_args)
 
@@ -466,6 +494,7 @@ parser.add_argument(
 parser.add_argument('--types_file', action='store')
 parser.add_argument('--imgui', action='store_true')
 parser.add_argument('--compare', action='store_true')
+parser.add_argument('--binary', action='store_true')
 parser.add_argument('--verbose', type=int, action='store', default=0)
 parser.add_argument("input")
 args = parser.parse_args()
@@ -474,7 +503,4 @@ out_dir = args.out_dir
 VERBOSE = args.verbose
 safe_mkdir(out_dir)
 
-first_file = True
-for input in glob.glob(args.input):
-    process_file(args, first_file, input)
-    first_file = False
+process_file(args, args.input)

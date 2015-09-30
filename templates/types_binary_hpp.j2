@@ -15,18 +15,10 @@ namespace {{ namespace }} {
 struct {{ struct.name }}
 {
   {% for member in struct.members %}
-  {% if member.default_value %}
-  {% if member.basic_types %}
-  {{ member.type_name }} {{ member.name }} = {{ member.default_value }};
-  {% else %}
-  {{ member.type_name }} {{ member.name }} = {{ member.type_name }}({{ member.default_value }});
-  {% endif %}
-  {% else %}
   {% if member.array_len > 0 %}
   {{ member.type_name }} {{ member.name }}[{{ member.array_len }}];
   {% else %}
   {{ member.type_name }} {{ member.name }};
-  {% endif %}
   {% endif %}
   {% endfor %}
 };
