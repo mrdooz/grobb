@@ -12,21 +12,20 @@ namespace {{ namespace }} {
 {% endif %}
 
 {% for struct in structs %}
-bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res)
+{{ struct.name }} Parse{{ struct.name }}(InputBuffer& buf)
 {
-  CHECKED_OP(buf.Expect('{'));
+  {{ struct.name }} res;
+  buf.Expect('{');
 
   string id;
   while (true)
   {
     buf.SkipWhitespace();
     // check for a closing tag
-    bool end;
-    CHECKED_OP(buf.ConsumeIf('}', &end));
-    if (end)
+    if (buf.ConsumeIf('}'))
       break;
 
-    CHECKED_OP(ParseIdentifier(buf, &id));
+    id = ParseIdentifier(buf);
     buf.SkipWhitespace();
 
     {% for member in struct.members %}
@@ -38,38 +37,34 @@ bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res)
     {
       {% if member.is_array %}
       buf.SkipWhitespace();
-      CHECKED_OP(buf.Expect('['));
+      buf.Expect('[');
 
       while (true)
       {
         buf.SkipWhitespace();
 
         // check for the closing ']'
-        bool closing;
-        CHECKED_OP(buf.ConsumeIf(']', &closing));
-        if (closing)
+        if (buf.ConsumeIf(']'))
           break;
 
         // parse the value
-        {{ member.inner_type }} value;
-        CHECKED_OP({{ member.parser }}(buf, &value));
-        res->{{ member.name }}.push_back(value);
+        res.{{ member.name }}.push_back({{ member.parser }}(buf));
 
         buf.SkipWhitespace();
-        CHECKED_OP(buf.ConsumeIf(',', nullptr));
+        buf.ConsumeIf(',');
       }
       buf.SkipWhitespace();
-      CHECKED_OP(buf.Expect(';'));
+      buf.Expect(';');
 
       {% else %}
-      CHECKED_OP({{ member.parser }}(buf, &res->{{ member.name }}));
+      res.{{ member.name }} = {{ member.parser }}(buf);
       buf.SkipWhitespace();
-      CHECKED_OP(buf.Expect(';'));
+      buf.Expect(';');
       {% endif %}
     }
     {% endfor %}
   }
-  return true;
+  return res;
 }
 
 {% endfor %}

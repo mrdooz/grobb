@@ -14,7 +14,7 @@ struct {{ struct.name }};
 {% endfor %}
 
 {% for struct in structs %}
-bool Parse{{ struct.name }}(InputBuffer& buf, {{ struct.name }}* res);
+{{ struct.name }} Parse{{ struct.name }}(InputBuffer& buf);
 {% endfor %}
 
 // Functions are created for both the case when the struct is a top-level struct,
